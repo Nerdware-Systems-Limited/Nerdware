@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import {
   fetchMe,
   updateMe,
@@ -24,7 +25,12 @@ const initials = (name = '') =>
     .join('')
     .toUpperCase();
 
-const roleLabel = { ADMIN: 'Admin', EDITOR: 'Editor', USER: 'User' };
+const ROLE_META = {
+  ADMIN:  { label: 'Admin',  color: '#f59e0b', canManage: true },
+  EDITOR: { label: 'Editor', color: '#6366f1', canManage: true },
+  WRITER: { label: 'Writer', color: '#10b981', canManage: true },
+  USER:   { label: 'User',   color: '#64748b', canManage: false },
+};
 
 const EyeIcon = ({ visible }) =>
   visible ? (
@@ -38,6 +44,102 @@ const EyeIcon = ({ visible }) =>
       <circle cx="12" cy="12" r="3" />
     </svg>
   );
+
+/* ─── Manage Site banner ──────────────────────────────────────────────────── */
+const ManageSiteBanner = ({ role }) => {
+  const meta = ROLE_META[role];
+  if (!meta?.canManage) return null;
+
+  return (
+    <Link to="/admin" className="manage-site-banner" style={{ '--role-color': meta.color }}>
+      <div className="manage-site-banner__icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+        </svg>
+      </div>
+      <div className="manage-site-banner__body">
+        <span className="manage-site-banner__title">Manage site</span>
+        <span className="manage-site-banner__sub">
+          Open the {meta.label} dashboard
+        </span>
+      </div>
+      <svg className="manage-site-banner__arrow" width="16" height="16" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M5 12h14M12 5l7 7-7 7" />
+      </svg>
+
+      <style>{`
+        .manage-site-banner {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 18px;
+          margin-bottom: 1.5rem;
+          border-radius: 12px;
+          background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--role-color) 12%, transparent),
+            color-mix(in srgb, var(--role-color) 6%, transparent)
+          );
+          border: 1px solid color-mix(in srgb, var(--role-color) 30%, transparent);
+          text-decoration: none;
+          color: inherit;
+          transition: background 0.2s, border-color 0.2s, transform 0.15s;
+          cursor: pointer;
+        }
+        .manage-site-banner:hover {
+          background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--role-color) 20%, transparent),
+            color-mix(in srgb, var(--role-color) 10%, transparent)
+          );
+          border-color: color-mix(in srgb, var(--role-color) 55%, transparent);
+          transform: translateY(-1px);
+        }
+        .manage-site-banner__icon {
+          flex-shrink: 0;
+          width: 38px;
+          height: 38px;
+          border-radius: 9px;
+          background: color-mix(in srgb, var(--role-color) 18%, transparent);
+          border: 1px solid color-mix(in srgb, var(--role-color) 35%, transparent);
+          display: grid;
+          place-items: center;
+          color: var(--role-color);
+        }
+        .manage-site-banner__body {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .manage-site-banner__title {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: var(--role-color);
+          letter-spacing: 0.01em;
+        }
+        .manage-site-banner__sub {
+          font-size: 0.78rem;
+          opacity: 0.65;
+        }
+        .manage-site-banner__arrow {
+          flex-shrink: 0;
+          opacity: 0.5;
+          transition: opacity 0.2s, transform 0.2s;
+          color: var(--role-color);
+        }
+        .manage-site-banner:hover .manage-site-banner__arrow {
+          opacity: 1;
+          transform: translateX(3px);
+        }
+      `}</style>
+    </Link>
+  );
+};
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export default function Profile() {
@@ -139,6 +241,7 @@ export default function Profile() {
     );
   }
 
+  const roleMeta     = ROLE_META[user?.role] ?? ROLE_META.USER;
   const isUpdating   = updateStatus   === 'loading';
   const isSavingPw   = passwordStatus === 'loading';
   const pwDisplayErr = pwLocalErr || passwordError;
@@ -148,6 +251,9 @@ export default function Profile() {
       <div className="auth-glow" aria-hidden="true" />
 
       <div className="profile-card fade-in-up">
+
+        {/* ── Manage site banner (admins / editors / writers only) ── */}
+        <ManageSiteBanner role={user?.role} />
 
         {/* ── Avatar + identity ── */}
         <div className="profile-hero">
@@ -162,7 +268,14 @@ export default function Profile() {
             <h2 className="auth-heading" style={{ marginBottom: '0.2rem' }}>{user?.name || '—'}</h2>
             <p className="profile-email">{user?.email}</p>
             {user?.role && (
-              <span className="profile-role-badge">{roleLabel[user.role] ?? user.role}</span>
+              <span
+                className="profile-role-badge"
+                style={{ background: `color-mix(in srgb, ${roleMeta.color} 15%, transparent)`,
+                         color: roleMeta.color,
+                         border: `1px solid color-mix(in srgb, ${roleMeta.color} 35%, transparent)` }}
+              >
+                {roleMeta.label}
+              </span>
             )}
           </div>
         </div>
@@ -206,7 +319,7 @@ export default function Profile() {
               </div>
             )}
 
-            {updateStatus === 'succeeded' && !profileDirty && (
+            {updateStatus === 'succeeded' && (
               <div className="auth-success" role="status">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />

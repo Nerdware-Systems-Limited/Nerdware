@@ -13,15 +13,21 @@ import Portfolio from './pages/Portfolio';
 import Blog from './pages/Blog';
 import Contact from './pages/Contact';
 import Error404 from './pages/Error404';
-import BlogDetail from './pages/BlogDetail'
-import AdminBlogList from './pages/AdminBlogList'
-import AdminBlogForm from './pages/AdminBlogForm'
+import BlogDetail from './pages/BlogDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ChangePassword from './pages/Changepassword';
 import Profile from './pages/Profile';
 
-// Wrap EVERYTHING here (most reliable for vite-react-ssg)
+// Admin imports
+import AdminLayout    from './components/admin/AdminLayout';
+import AdminOverview  from './pages/admin/AdminOverview';
+import AdminBlogList  from './pages/admin/AdminBlogList';
+import AdminBlogForm  from './pages/admin/AdminBlogForm';
+import AdminUsers     from './pages/admin/AdminUsers';
+import AdminPortfolio from './pages/admin/AdminPortfolio';
+
+// ── Public layout (has Header + Footer) ──────────────────────────────────────
 const Layout = () => (
   <Provider store={store}>
     <HelmetProvider>
@@ -34,28 +40,51 @@ const Layout = () => (
   </Provider>
 );
 
-// Routes (data-router format)
+// ── Admin layout wrapper (no Header / Footer) ─────────────────────────────────
+// AdminLayout itself handles auth-guarding, sidebar, topbar, and <Outlet />.
+// We still need Provider + HelmetProvider around it.
+const AdminRoot = () => (
+  <Provider store={store}>
+    <HelmetProvider>
+      <AdminLayout />
+    </HelmetProvider>
+  </Provider>
+);
+
+// ── Routes (data-router format) ───────────────────────────────────────────────
 export const routes = [
+  // ── Public routes (with Header + Footer) ───────────────────────────────────
   {
     path: '/',
     element: <Layout />,
-    errorElement: <Error404 />, // better UX
+    errorElement: <Error404 />,
     children: [
-      { index: true, element: <Home /> },
-      { path: 'login', element: <Login /> },
-      { path: 'register', element: <Register /> },
+      { index: true,             element: <Home /> },
+      { path: 'login',           element: <Login /> },
+      { path: 'register',        element: <Register /> },
       { path: 'change-password', element: <ChangePassword /> },
-      { path: 'profile', element: <Profile /> },
-      { path: 'about', element: <About /> },
-      { path: 'services', element: <Services /> },
-      { path: 'portfolio', element: <Portfolio /> },
-      { path: 'blog', element: <Blog /> },
-      { path: 'blog/:slug', element: <BlogDetail /> },
-      { path: 'admin/blogs', element: <AdminBlogList /> },
-      { path: 'admin/blogs/new', element: <AdminBlogForm /> },
-      { path: 'admin/blogs/:id/edit', element: <AdminBlogForm /> },
-      { path: 'contact', element: <Contact /> },
-      { path: '*', element: <Error404 /> },
+      { path: 'profile',         element: <Profile /> },
+      { path: 'about',           element: <About /> },
+      { path: 'services',        element: <Services /> },
+      { path: 'portfolio',       element: <Portfolio /> },
+      { path: 'blog',            element: <Blog /> },
+      { path: 'blog/:slug',      element: <BlogDetail /> },
+      { path: 'contact',         element: <Contact /> },
+      { path: '*',               element: <Error404 /> },
+    ],
+  },
+
+  // ── Admin routes (no Header / Footer) ──────────────────────────────────────
+  {
+    path: 'admin',
+    element: <AdminRoot />,
+    children: [
+      { index: true,           element: <AdminOverview /> },
+      { path: 'blog',          element: <AdminBlogList /> },
+      { path: 'blog/new',      element: <AdminBlogForm /> },
+      { path: 'blog/edit/:id', element: <AdminBlogForm /> },
+      { path: 'portfolio',     element: <AdminPortfolio /> },
+      { path: 'users',         element: <AdminUsers /> },
     ],
   },
 ];

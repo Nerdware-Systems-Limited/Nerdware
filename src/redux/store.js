@@ -1,14 +1,20 @@
 import { configureStore } from '@reduxjs/toolkit';
-import testimonialReducer from './slices/testimonialSlice';
+import authReducer from './slices/authslice';
+import usersReducer from './slices/userSlice';
 import blogReducer from './slices/Blogslice';
 import portfolioReducer from './slices/portfolioSlice';
-import authReducer from './slices/authslice';
+import testimonialReducer from './slices/testimonialSlice';
+import applicationsReducer from './slices/applicationsSlice';
+import miscReducer from './slices/miscSlice';
 
 export const store = configureStore({
   reducer: {
-    auth: authReducer,
+    auth:         authReducer,
+    users:        usersReducer,
+    blogs:        blogReducer,
+    portfolios:   portfolioReducer,
     testimonials: testimonialReducer,
-    blogs: blogReducer,
-    portfolios: portfolioReducer,
+    applications: applicationsReducer,
+    misc:         miscReducer,
   },
 });

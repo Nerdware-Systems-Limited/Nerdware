@@ -1,32 +1,63 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../api/kyClient'
+import api from '../api/kyClient';
 
-// Async thunk
-export const fetchPortfolios = createAsyncThunk(
-  'portfolios/fetchPortfolios',
+// ── Thunks ────────────────────────────────────────────────────────────────────
+
+export const fetchAllPortfolios = createAsyncThunk(
+  'portfolios/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get('portfolios').json();
-
-      if (res.data?.portfolios) {
-        return res.data.portfolios;
-      } else if (res.portfolios) {
-        return res.portfolios;
-      } else if (Array.isArray(res)) {
-        return res;
-      } else {
-        console.error('Unexpected API response structure:', res);
-        return rejectWithValue('Invalid data structure from API');
-      }
+      if (res.data?.portfolios) return res.data.portfolios;
+      if (res.portfolios)        return res.portfolios;
+      if (Array.isArray(res))    return res;
+      return rejectWithValue('Invalid data structure from API');
     } catch (err) {
-      const errorMessage =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to fetch portfolios';
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(err?.message || 'Failed to fetch portfolios');
     }
   }
 );
+
+// Keep old name as alias so any other file using fetchPortfolios still works
+export const fetchPortfolios = fetchAllPortfolios;
+
+export const createPortfolio = createAsyncThunk(
+  'portfolios/create',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await api.post('portfolios', { json: payload }).json();
+      return res.data?.portfolio ?? res.portfolio ?? res;
+    } catch (err) {
+      return rejectWithValue(err?.message || 'Failed to create portfolio');
+    }
+  }
+);
+
+export const updatePortfolio = createAsyncThunk(
+  'portfolios/update',
+  async ({ id, ...payload }, { rejectWithValue }) => {
+    try {
+      const res = await api.put(`portfolios/${id}`, { json: payload }).json();
+      return res.data?.portfolio ?? res.portfolio ?? res;
+    } catch (err) {
+      return rejectWithValue(err?.message || 'Failed to update portfolio');
+    }
+  }
+);
+
+export const deletePortfolio = createAsyncThunk(
+  'portfolios/delete',
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`portfolios/${id}`);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err?.message || 'Failed to delete portfolio');
+    }
+  }
+);
+
+// ── Slice ─────────────────────────────────────────────────────────────────────
 
 const portfolioSlice = createSlice({
   name: 'portfolios',
@@ -37,26 +68,45 @@ const portfolioSlice = createSlice({
   },
   reducers: {},
   extraReducers: (builder) => {
+    // fetchAll
     builder
-      .addCase(fetchPortfolios.pending, (state) => {
+      .addCase(fetchAllPortfolios.pending, (state) => {
         state.status = 'loading';
-        state.error = null;
+        state.error  = null;
       })
-      .addCase(fetchPortfolios.fulfilled, (state, action) => {
+      .addCase(fetchAllPortfolios.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = action.payload;
+        state.items  = action.payload;
       })
-      .addCase(fetchPortfolios.rejected, (state, action) => {
+      .addCase(fetchAllPortfolios.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error  = action.payload;
+      });
+
+    // create
+    builder
+      .addCase(createPortfolio.fulfilled, (state, action) => {
+        state.items.unshift(action.payload);
+      });
+
+    // update
+    builder
+      .addCase(updatePortfolio.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((p) => p.id === action.payload.id);
+        if (idx !== -1) state.items[idx] = action.payload;
+      });
+
+    // delete
+    builder
+      .addCase(deletePortfolio.fulfilled, (state, action) => {
+        state.items = state.items.filter((p) => p.id !== action.payload);
       });
   },
 });
 
-// ✅ Selectors
+// ── Selectors ─────────────────────────────────────────────────────────────────
 export const selectAllPortfolios    = (state) => state.portfolios.items;
 export const selectPortfoliosStatus = (state) => state.portfolios.status;
 export const selectPortfoliosError  = (state) => state.portfolios.error;
 
-// ✅ Reducer
 export default portfolioSlice.reducer;

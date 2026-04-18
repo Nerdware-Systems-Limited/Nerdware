@@ -78,7 +78,7 @@ const Header = () => {
               style={{ display: 'inline-block' }}
               onError={(e) => { e.target.style.display = 'none'; }}
             />
-            <span style={{ color: '#ffffff' }}>Nerdware</span>
+            <span style={{ color: '#ffffff' }}>Nerdware Technologies</span>
           </Navbar.Brand>
 
           {/* Desktop Nav */}
