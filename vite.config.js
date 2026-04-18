@@ -14,7 +14,8 @@ export default defineConfig({
         '/portfolio',
         '/blog',
         '/contact'
-      ]
+      ],
+      generateRobotsTxt: false  // ← add this line
     })
   ],
   build: {
