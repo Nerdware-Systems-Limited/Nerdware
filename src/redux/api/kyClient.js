@@ -1,7 +1,7 @@
 import ky from 'ky';
 
 const api = ky.create({
-  prefix: 'https://nerdwaretechnologies.com',
+  prefix: 'https://nerdware-backend.onrender.com/api/',
   headers: {
     'Content-Type': 'application/json',
   },

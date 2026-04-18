@@ -11,11 +11,11 @@ const SEO = ({
 }) => {
   const siteTitle = 'Nerdware Technologies'
   const siteUrl = 'https://nerdwaretechnologies.com'
-  const defaultImage = `${siteUrl}/images/logo.png`
+  // const defaultImage = `${siteUrl}/images/logo.png`
   
   const pageTitle = title ? `${title} | ${siteTitle}` : siteTitle
   const pageUrl = url ? `${siteUrl}${url}` : siteUrl
-  const pageImage = image ? `${siteUrl}${image}` : defaultImage
+  const pageImage = image ? `${siteUrl}${image}` : null
 
   useEffect(() => {
     // Set document title

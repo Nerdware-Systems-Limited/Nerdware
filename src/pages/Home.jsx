@@ -10,7 +10,7 @@ const Home = () => {
   return (
     <>
       <SEO
-        title="Professional Web Development Services"
+        title="Leading Software Development and AI automation Company in Kenya"
         description="Expert web development, mobile apps, and digital solutions. Transform your business with cutting-edge technology and innovative design."
         keywords="web development, mobile apps, software development, digital solutions, technology consulting"
         url="/"
