@@ -5,6 +5,7 @@ import Features from '../components/home/Features';
 import TestimonialSection from '../components/home/TestimonialSection';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import Newsletter from '../components/common/Newsletter';
 
 const Home = () => {
   return (
@@ -39,6 +40,9 @@ const Home = () => {
           </Row>
         </Container>
       </section>
+      <div className="divider my-5">
+      <Newsletter />
+      </div>
     </main>
     </>
   );

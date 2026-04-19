@@ -3,6 +3,8 @@ import { useState, useRef } from 'react';
 import { FaMapMarkerAlt, FaPhone, FaEnvelope, FaClock, FaArrowRight, FaCheck } from 'react-icons/fa';
 import emailjs from '@emailjs/browser';
 import SEO from '../components/common/SEO';
+import { useDispatch } from 'react-redux';
+import { sendContactMessage, clearContactState } from '../redux/slices/miscSlice';
 
 /* ─── Inline style tokens (all wired to index.css variables) ─────────── */
 const S = {
@@ -207,32 +209,60 @@ function InfoCard({ icon, title, lines }) {
 /* ─── Main component ─────────────────────────────────────────────────── */
 const Contact = () => {
   const form = useRef();
+  const dispatch = useDispatch();
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [selectedService, setSelectedService] = useState('');
 
   const services = ['Web Development', 'Mobile App', 'SEO', 'Data Analysis', 'Automation', 'AI Agent', 'Other'];
-  console.log("Form ref:", form.current);
-
+  
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setShowError(false);
-    emailjs
-      .sendForm('service_robfegs', 'template_ee07y1j', form.current, { publicKey: 'msPpvIVCXTIzEVGOD' })
-      .then(() => {
-        setSubmitting(false);
-        setShowSuccess(true);
-        form.current.reset();
-        setSelectedService('');
-        setTimeout(() => setShowSuccess(false), 5000);
-      }, (error) => {
-        console.log('FAILED...', error.text);
-        setSubmitting(false);
-        setShowError(true);
-        setTimeout(() => setShowError(false), 5000);
+
+    const data = new FormData(form.current);
+    const messageData = {
+      name:    data.get('name'),
+      email:   data.get('email'),
+      phone:   data.get('phone'),
+      company: data.get('company'),
+      subject: data.get('subject'),
+      message: data.get('message'),
+      budget:  data.get('budget'),
+      service: selectedService,
+    };
+
+    try {
+      // 1️⃣  EmailJS — keeps your email notification
+      // await emailjs.sendForm(
+      //   'service_robfegs', 'template_ee07y1j', form.current,
+      //   { publicKey: 'msPpvIVCXTIzEVGOD' }
+      // );
+
+      // 2️⃣  POST /api/contact via Redux
+      await dispatch(sendContactMessage(messageData)).unwrap();
+
+      window.scrollTo({
+        top: 20,
+        behavior: 'smooth',
       });
+
+      setSubmitting(false);
+      setShowSuccess(true);
+      form.current.reset();
+      setSelectedService('');
+      dispatch(clearContactState());
+      setTimeout(() => setShowSuccess(false), 5000);
+
+    } catch (error) {
+      console.log('FAILED...', error);
+      setSubmitting(false);
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
+    }
   };
 
   return (

@@ -26,6 +26,9 @@ import AdminBlogList  from './pages/admin/AdminBlogList';
 import AdminBlogForm  from './pages/admin/AdminBlogForm';
 import AdminUsers     from './pages/admin/AdminUsers';
 import AdminPortfolio from './pages/admin/AdminPortfolio';
+import AdminMessages from './pages/admin/AdminMessages';
+import AdminApplications from './pages/admin/AdminApplications';
+import AdminNewsletter from './pages/admin/AdminNewsletter';
 
 // ── Public layout (has Header + Footer) ──────────────────────────────────────
 const Layout = () => (
@@ -85,6 +88,9 @@ export const routes = [
       { path: 'blog/edit/:id', element: <AdminBlogForm /> },
       { path: 'portfolio',     element: <AdminPortfolio /> },
       { path: 'users',         element: <AdminUsers /> },
+      { path: 'messages',      element: <AdminMessages /> },
+      { path: 'applications',  element: <AdminApplications /> },
+      {path: 'newsletter',     element: <AdminNewsletter /> },
     ],
   },
 ];

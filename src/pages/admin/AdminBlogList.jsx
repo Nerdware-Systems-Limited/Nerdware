@@ -140,7 +140,7 @@ const AdminBlogList = () => {
                           <Eye size={15} />
                         </Link>
                       )}
-                      <Link to={`/admin/blog/edit/${p.id}`} className="nw-icon-btn" title="Edit">
+                      <Link to={`/admin/blog/edit/${p.slug}`} className="nw-icon-btn" title="Edit">
                         <Pencil size={15} />
                       </Link>
                       <button

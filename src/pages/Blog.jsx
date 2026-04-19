@@ -10,6 +10,7 @@ import {
   selectBlogsError,
 } from '../redux/slices/Blogslice';
 import { Link } from 'react-router-dom';
+import Newsletter from '../components/common/Newsletter';
 
 /* ─── Skeleton card shown while loading ──────────────────────────────────── */
 const SkeletonCard = () => (
@@ -197,29 +198,7 @@ const Blog = () => {
             )}
 
             {/* ── Newsletter ─────────────────────────────────────────────── */}
-            <Row className="mt-5">
-              <Col lg={8} className="mx-auto">
-                <div className="newsletter-signup text-center p-5 rounded-3">
-                  <h3 className="mb-2">Stay in the Loop</h3>
-                  <p className="mb-4">
-                    Get the latest articles delivered straight to your inbox.
-                  </p>
-                  <div className="d-flex justify-content-center">
-                    <div className="input-group" style={{ maxWidth: '420px' }}>
-                      <input
-                        type="email"
-                        className="form-control"
-                        placeholder="your@email.com"
-                        aria-label="Email address"
-                      />
-                      <button className="btn btn-primary" type="button">
-                        Subscribe
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Col>
-            </Row>
+            <Newsletter />
 
           </Container>
         </section>
