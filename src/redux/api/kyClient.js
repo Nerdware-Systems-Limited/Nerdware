@@ -1,7 +1,7 @@
 import ky from 'ky';
 
 const api = ky.create({
-  prefix: 'http://localhost:5000/api/',
+  prefix: 'https://nerdware-backend-eqil.onrender.com/api/',
   headers: {
     'Content-Type': 'application/json',
   },
