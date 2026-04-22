@@ -5,13 +5,12 @@ const getToken = () => localStorage.getItem('token') || '';
 
 const authApi = () =>
   api.extend({ headers: { Authorization: `Bearer ${getToken()}` } });
-// ── Thunks ────────────────────────────────────────────────────────────────────
 
 export const fetchAllPortfolios = createAsyncThunk(
   'portfolios/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await authApi.get('portfolios').json();
+      const res = await authApi().get('portfolios').json();
       if (res.data?.portfolios) return res.data.portfolios;
       if (res.portfolios)        return res.portfolios;
       if (Array.isArray(res))    return res;
@@ -29,7 +28,7 @@ export const createPortfolio = createAsyncThunk(
   'portfolios/create',
   async (payload, { rejectWithValue }) => {
     try {
-      const res = await authApi.post('portfolios', { json: payload }).json();
+      const res = await authApi().post('portfolios', { json: payload }).json();
       return res.data?.portfolio ?? res.portfolio ?? res;
     } catch (err) {
       return rejectWithValue(err?.message || 'Failed to create portfolio');
@@ -41,7 +40,7 @@ export const updatePortfolio = createAsyncThunk(
   'portfolios/update',
   async ({ id, ...payload }, { rejectWithValue }) => {
     try {
-      const res = await authApi.put(`portfolios/${id}`, { json: payload }).json();
+      const res = await authApi().put(`portfolios/${id}`, { json: payload }).json();
       return res.data?.portfolio ?? res.portfolio ?? res;
     } catch (err) {
       return rejectWithValue(err?.message || 'Failed to update portfolio');
@@ -53,7 +52,7 @@ export const deletePortfolio = createAsyncThunk(
   'portfolios/delete',
   async (id, { rejectWithValue }) => {
     try {
-      await authApi.delete(`portfolios/${id}`);
+      await authApi().delete(`portfolios/${id}`);
       return id;
     } catch (err) {
       return rejectWithValue(err?.message || 'Failed to delete portfolio');
