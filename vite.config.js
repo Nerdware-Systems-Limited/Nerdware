@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react';
 import Sitemap from 'vite-plugin-sitemap';
 
 export default defineConfig({
+  server: {
+    allowedHosts: [
+      'nerdwaretechnologies.com',
+      'nerdware-rn8f.onrender.com',
+    ]
+  },
   plugins: [
     react(),
     Sitemap({
@@ -15,7 +21,7 @@ export default defineConfig({
         '/blog',
         '/contact'
       ],
-      generateRobotsTxt: false  // ← add this line
+      generateRobotsTxt: false
     })
   ],
   build: {
