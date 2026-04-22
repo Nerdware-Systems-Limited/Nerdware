@@ -10,7 +10,7 @@ export const fetchAllPortfolios = createAsyncThunk(
   'portfolios/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await authApi().get('portfolios').json();
+      const res = await api().get('portfolios').json();
       if (res.data?.portfolios) return res.data.portfolios;
       if (res.portfolios)        return res.portfolios;
       if (Array.isArray(res))    return res;
