@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'nerdwaretechnologies.com',
-      'nerdware-rn8f.onrender.com'
+      'nerdware-rn8f.onrender.com',
     ]
   },
   plugins: [
