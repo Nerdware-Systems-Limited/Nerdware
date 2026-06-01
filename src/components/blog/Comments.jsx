@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { selectUser, selectIsAuthenticated } from '../../redux/slices/authSlice';
+import { selectUser, selectIsAuthenticated } from '../../redux/slices/authslice';
 import {
   fetchComments,
   fetchReplies,
