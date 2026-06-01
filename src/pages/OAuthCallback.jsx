@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { fetchMe } from "../redux/slices/authSlice";
+import { fetchMe } from "../redux/slices/authslice";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
