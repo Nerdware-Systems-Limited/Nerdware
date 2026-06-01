@@ -2,16 +2,35 @@ import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectIsAuthenticated, selectUser } from '../../redux/slices/authslice';
+import {
+  selectIsAuthenticated,
+  selectUser,
+  selectAuthStatus,
+  fetchMe,
+  logout,
+} from '../../redux/slices/authslice';
 
 const Header = () => {
   const [expanded, setExpanded] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
+  const authStatus = useSelector(selectAuthStatus);
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
+
+  // On page load: token exists in localStorage but Redux user is null → hydrate.
+  // This mirrors what AdminLayout does and keeps the Header in sync after a hard
+  // refresh, without waiting for the user to navigate somewhere that calls fetchMe.
+  // If the token is expired/invalid, fetchMe will fail → authSlice clears
+  // isAuthenticated → Header correctly shows Sign in / Get Started.
+  useEffect(() => {
+    if (isAuthenticated && !user && authStatus !== 'loading') {
+      dispatch(fetchMe());
+    }
+  }, [isAuthenticated, user, authStatus, dispatch]);
   
   const avatarUrl = user?.avatar || "https://gravatar.com/avatar/c27ed039266d0e757973489b42b30064?s=400&d=robohash&r=x";
 
@@ -416,7 +435,7 @@ const Header = () => {
                   {/* Optional: Logout */}
                   <button
                     onClick={() => {
-                      // dispatch(logout());
+                      dispatch(logout());
                       setExpanded(false);
                     }}
                     style={{

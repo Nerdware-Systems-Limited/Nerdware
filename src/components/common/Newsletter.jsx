@@ -36,7 +36,7 @@ const Newsletter = ({
   }, [status, dispatch]);
 
   return (
-    <Row className="mt-5">
+    <Row className="mt-5  mb-4">
       <Col lg={8} className="mx-auto">
         <div className="newsletter-signup text-center p-5 rounded-3">
           <h3 className="mb-2">{title}</h3>

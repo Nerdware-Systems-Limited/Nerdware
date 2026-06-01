@@ -12,6 +12,7 @@ selectDetailStatus,
 selectBlogsError,
 } from '../redux/slices/Blogslice';
 import SEO from '../components/common/SEO';
+import Comments from '../components/blog/Comments';
 
 /* ─── Skeleton ────────────────────────────────────────────────────────────── */
 const DetailSkeleton = () => (
@@ -438,6 +439,8 @@ Tagged:
 </div>
 </div>
 )}
+
+<Comments blogId={post.id} />
 
 {/* Back CTA */}
 <div className="mt-5 pt-3 fade-in-up">

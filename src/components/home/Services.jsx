@@ -41,7 +41,7 @@ const Services = () => {
             <Col key={service.id} md={4} className="mb-4">
               <Card className="service-card h-100 border-0 shadow-sm">
                 <Card.Body className="text-center p-4">
-                  <div className="icon-wrapper mb-3">
+                  <div className="icon-wrapper d-flex justify-content-center align-items-center mb-3">
                     {service.icon}
                   </div>
                   <Card.Title as="h3" className="service-title">{service.title}</Card.Title>

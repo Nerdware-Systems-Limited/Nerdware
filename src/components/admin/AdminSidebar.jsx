@@ -16,7 +16,8 @@ const NAV = [
     { to: '/admin/users',     label: 'Users',      icon: Users, adminOnly: true },
     { to: '/admin/messages',  label: 'Messages',   icon: MessageSquare, adminOnly: true },
     { to: '/admin/applications', label: 'Applications', icon: Briefcase, adminOnly: true},
-    { to: '/admin/newsletter', label: 'Newsletter',  icon: Briefcase, adminOnly: true}
+    { to: '/admin/newsletter', label: 'Newsletter',  icon: Briefcase, adminOnly: true},
+    { to: '/admin/testimonial', label: 'Testimonials',  icon: Briefcase, adminOnly: true},
   ]},
   { section: 'Account', items: [
     { to: '/profile',         label: 'Settings',   icon: Settings },

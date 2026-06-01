@@ -1,6 +1,6 @@
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import hero from '../../assets/hero.png';
+import hero from '../../assets/tech_illustration.webp';
 
 const Hero = () => {
   return (

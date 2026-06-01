@@ -20,6 +20,7 @@ const Login          = lazy(() => import('./pages/Login'));
 const Register       = lazy(() => import('./pages/Register'));
 const ChangePassword = lazy(() => import('./pages/Changepassword'));
 const Profile        = lazy(() => import('./pages/Profile'));
+const OAuthCallback   = lazy(() => import('./pages/OAuthCallback'));
 
 // ── Admin pages (lazy-loaded — rarely visited, keeps main bundle small) ───────
 const AdminLayout       = lazy(() => import('./components/admin/AdminLayout'));
@@ -31,6 +32,7 @@ const AdminPortfolio    = lazy(() => import('./pages/admin/AdminPortfolio'));
 const AdminMessages     = lazy(() => import('./pages/admin/AdminMessages'));
 const AdminApplications = lazy(() => import('./pages/admin/AdminApplications'));
 const AdminNewsletter   = lazy(() => import('./pages/admin/AdminNewsletter'));
+const AdminTestimonial  = lazy(() => import('./pages/admin/AdminTestimonial'));
 
 // ── Public layout (Header + Outlet + Footer) ──────────────────────────────────
 const Layout = () => (
@@ -79,6 +81,7 @@ export const routes = [
       { path: 'blog',            element: <Blog /> },
       { path: 'blog/:slug',      element: <BlogDetail /> },
       { path: 'contact',         element: <Contact /> },
+      { path: 'oauth/callback',  element: <OAuthCallback /> },
       { path: '*',               element: <Error404 /> },
     ],
   },
@@ -97,6 +100,7 @@ export const routes = [
       { path: 'messages',        element: <AdminMessages /> },
       { path: 'applications',    element: <AdminApplications /> },
       { path: 'newsletter',      element: <AdminNewsletter /> },
+      { path: 'testimonial',     element: <AdminTestimonial /> },
     ],
   },
 ];

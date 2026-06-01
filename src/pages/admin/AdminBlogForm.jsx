@@ -81,8 +81,8 @@ const Divider = () => (
 const Toolbar = ({ editor }) => {
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [showImageInput, setShowImageInput] = useState(false);
   const [showYtInput, setShowYtInput] = useState(false);
   const [ytUrl, setYtUrl] = useState('');
   const [showTableMenu, setShowTableMenu] = useState(false);
@@ -119,11 +119,13 @@ const Toolbar = ({ editor }) => {
 
   return (
     <div style={{
-      display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2,
+      display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 2,
       padding: '8px 10px',
       borderBottom: '1px solid var(--nw-border, rgba(255,255,255,0.1))',
       background: 'rgba(255,255,255,0.03)',
       borderRadius: '10px 10px 0 0',
+      overflowX: 'auto',
+      whiteSpace: 'nowrap',
     }}>
       {/* History */}
       <TBtn title="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}><Undo size={14} /></TBtn>
@@ -270,7 +272,7 @@ const WordCount = ({ editor }) => {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const chars = text.length;
   return (
-    <div style={{ padding: '5px 12px', fontSize: '0.75rem', color: 'var(--text-muted, #666)', borderTop: '1px solid var(--nw-border, rgba(255,255,255,0.08))', textAlign: 'right' }}>
+    <div className="nw-word-count">
       {words} words · {chars} characters
     </div>
   );
@@ -386,7 +388,6 @@ const AdminBlogForm = () => {
       <style>{`
         .nw-rich-editor {
           min-height: 420px;
-          padding: 20px 24px;
           outline: none;
           color: var(--text-secondary, #ccc);
           font-size: 1rem;
@@ -465,19 +466,43 @@ const AdminBlogForm = () => {
           border-radius: 8px; padding: 4px 6px;
           box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
-        /* Editor wrapper */
+        /* Editor container */
         .nw-editor-wrap {
           border: 1px solid var(--nw-border, rgba(255,255,255,0.1));
           border-radius: 10px;
-          overflow: visible;
+          overflow: hidden;
           background: var(--nw-surface, rgba(255,255,255,0.03));
           transition: border-color 0.2s;
+          height: 600px;
+          display: flex;
+          flex-direction: column;
         }
         .nw-editor-wrap:focus-within {
           border-color: rgba(238,79,39,0.45);
           box-shadow: 0 0 0 3px rgba(238,79,39,0.08);
         }
         .nw-editor-wrap--error { border-color: rgba(239,68,68,0.6) !important; }
+        
+        .nw-editor-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px 24px;
+          position: relative;
+        }
+        
+        .nw-word-count {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 5px 12px;
+          font-size: 0.75rem;
+          color: var(--text-muted, #666);
+          border-top: 1px solid var(--nw-border, rgba(255,255,255,0.08));
+          text-align: right;
+          background: var(--nw-surface, #1a1a2e);
+          z-index: 1;
+        }
       `}</style>
 
       <form onSubmit={handleSubmit}>
@@ -525,22 +550,10 @@ const AdminBlogForm = () => {
               <Field label="Content" required hint="Use the toolbar to format text, insert images, embed YouTube videos, add tables, code blocks and more." error={errors.content}>
                 <div className={`nw-editor-wrap${errors.content ? ' nw-editor-wrap--error' : ''}`}>
                   <Toolbar editor={editor} />
-
-                  {/* Bubble menu (appears on text selection) */}
-                  {/* {editor && (
-                    <BubbleMenu editor={editor} tippyOptions={{ duration: 120 }}>
-                      <div className="nw-bubble-menu">
-                        <TBtn title="Bold"   active={editor.isActive('bold')}      onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={13} /></TBtn>
-                        <TBtn title="Italic" active={editor.isActive('italic')}    onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={13} /></TBtn>
-                        <TBtn title="Strike" active={editor.isActive('strike')}    onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough size={13} /></TBtn>
-                        <TBtn title="Code"   active={editor.isActive('code')}      onClick={() => editor.chain().focus().toggleCode().run()}><Code size={13} /></TBtn>
-                        <TBtn title="Link"   active={editor.isActive('link')}      onClick={() => { const url = window.prompt('URL'); if (url) editor.chain().focus().setLink({ href: url }).run(); }}><LinkIcon size={13} /></TBtn>
-                      </div>
-                    </BubbleMenu>
-                  )} */}
-
-                  <EditorContent editor={editor} />
-                  <WordCount editor={editor} />
+                  <div className="nw-editor-content">
+                    <EditorContent editor={editor} />
+                    <WordCount editor={editor} />
+                  </div>
                 </div>
               </Field>
             </div>

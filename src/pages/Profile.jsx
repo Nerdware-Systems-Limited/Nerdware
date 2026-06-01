@@ -1,149 +1,107 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
+
+/* ── auth ── */
 import {
-  fetchMe,
-  updateMe,
-  changePassword,
-  logout,
-  clearUpdateState,
-  clearPasswordState,
-  selectUser,
-  selectAuthStatus,
-  selectUpdateStatus,
-  selectUpdateError,
-  selectPasswordStatus,
-  selectPasswordError,
+  fetchMe, updateMe, changePassword, logout,
+  clearUpdateState, clearPasswordState,
+  selectUser, selectAuthStatus,
+  selectUpdateStatus, selectUpdateError,
+  selectPasswordStatus, selectPasswordError,
 } from '../redux/slices/authslice';
 
-/* ─── tiny helpers ────────────────────────────────────────────────────────── */
+/* ── data slices for live stats ── */
+import { fetchBlogs,       selectAllBlogs,       selectBlogsStatus   } from '../redux/slices/Blogslice';
+import { fetchAllPortfolios, selectAllPortfolios, selectPortfoliosStatus } from '../redux/slices/portfolioSlice';
+import { fetchAllApplications, selectAllApplications, selectApplicationsStatus } from '../redux/slices/applicationsSlice';
+import { fetchMessages,    selectMessages,        selectMessagesStatus } from '../redux/slices/miscSlice';
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  Tiny helpers                                                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
 const initials = (name = '') =>
-  name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
 const ROLE_META = {
-  ADMIN:  { label: 'Admin',  color: '#f59e0b', canManage: true },
-  EDITOR: { label: 'Editor', color: '#6366f1', canManage: true },
-  WRITER: { label: 'Writer', color: '#10b981', canManage: true },
-  USER:   { label: 'User',   color: '#64748b', canManage: false },
+  ADMIN:  { label: 'Admin',  color: '#38bdf8', glow: 'rgba(56,189,248,0.35)',  symbol: '◈' },
+  EDITOR: { label: 'Editor', color: '#818cf8', glow: 'rgba(129,140,248,0.35)', symbol: '◇' },
+  WRITER: { label: 'Writer', color: '#34d399', glow: 'rgba(52,211,153,0.35)',  symbol: '◉' },
+  USER:   { label: 'User',   color: '#64748b', glow: 'rgba(100,116,139,0.25)', symbol: '○' },
 };
 
-const EyeIcon = ({ visible }) =>
-  visible ? (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  ) : (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
+/* ─── SVG icon helpers ── */
+const Icon = ({ d, size = 16, ...p }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
+  </svg>
+);
 
-/* ─── Manage Site banner ──────────────────────────────────────────────────── */
-const ManageSiteBanner = ({ role }) => {
-  const meta = ROLE_META[role];
-  if (!meta?.canManage) return null;
+const EyeIcon = ({ visible }) => visible ? (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+) : (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+  </svg>
+);
 
-  return (
-    <Link to="/admin" className="manage-site-banner" style={{ '--role-color': meta.color }}>
-      <div className="manage-site-banner__icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-        </svg>
-      </div>
-      <div className="manage-site-banner__body">
-        <span className="manage-site-banner__title">Manage site</span>
-        <span className="manage-site-banner__sub">
-          Open the {meta.label} dashboard
-        </span>
-      </div>
-      <svg className="manage-site-banner__arrow" width="16" height="16" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M5 12h14M12 5l7 7-7 7" />
-      </svg>
+const Spinner = ({ size = 15 }) => (
+  <span className="p-spinner" style={{ width: size, height: size }} aria-hidden="true" />
+);
 
-      <style>{`
-        .manage-site-banner {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 14px 18px;
-          margin-bottom: 1.5rem;
-          border-radius: 12px;
-          background: linear-gradient(
-            135deg,
-            color-mix(in srgb, var(--role-color) 12%, transparent),
-            color-mix(in srgb, var(--role-color) 6%, transparent)
-          );
-          border: 1px solid color-mix(in srgb, var(--role-color) 30%, transparent);
-          text-decoration: none;
-          color: inherit;
-          transition: background 0.2s, border-color 0.2s, transform 0.15s;
-          cursor: pointer;
-        }
-        .manage-site-banner:hover {
-          background: linear-gradient(
-            135deg,
-            color-mix(in srgb, var(--role-color) 20%, transparent),
-            color-mix(in srgb, var(--role-color) 10%, transparent)
-          );
-          border-color: color-mix(in srgb, var(--role-color) 55%, transparent);
-          transform: translateY(-1px);
-        }
-        .manage-site-banner__icon {
-          flex-shrink: 0;
-          width: 38px;
-          height: 38px;
-          border-radius: 9px;
-          background: color-mix(in srgb, var(--role-color) 18%, transparent);
-          border: 1px solid color-mix(in srgb, var(--role-color) 35%, transparent);
-          display: grid;
-          place-items: center;
-          color: var(--role-color);
-        }
-        .manage-site-banner__body {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .manage-site-banner__title {
-          font-size: 0.9rem;
-          font-weight: 700;
-          color: var(--role-color);
-          letter-spacing: 0.01em;
-        }
-        .manage-site-banner__sub {
-          font-size: 0.78rem;
-          opacity: 0.65;
-        }
-        .manage-site-banner__arrow {
-          flex-shrink: 0;
-          opacity: 0.5;
-          transition: opacity 0.2s, transform 0.2s;
-          color: var(--role-color);
-        }
-        .manage-site-banner:hover .manage-site-banner__arrow {
-          opacity: 1;
-          transform: translateX(3px);
-        }
-      `}</style>
-    </Link>
-  );
-};
+/* ─── Stat card ── */
+const StatCard = ({ icon, label, value, accent, loading }) => (
+  <div className="p-stat" style={{ '--accent': accent }}>
+    <div className="p-stat-icon">{icon}</div>
+    <div className="p-stat-body">
+      <span className="p-stat-value">
+        {loading ? <span className="p-skel p-skel--sm" /> : value}
+      </span>
+      <span className="p-stat-label">{label}</span>
+    </div>
+  </div>
+);
+
+/* ─── Section card ── */
+const Card = ({ title, children, accent }) => (
+  <div className="p-card" style={{ '--accent': accent }}>
+    <h4 className="p-card-title">{title}</h4>
+    {children}
+  </div>
+);
+
+/* ─── Tab button ── */
+const Tab = ({ id, active, onClick, icon, label }) => (
+  <button
+    role="tab"
+    aria-selected={active}
+    className={`p-tab${active ? ' p-tab--active' : ''}`}
+    onClick={() => onClick(id)}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
+
+/* ─── Toast ── */
+const Toast = ({ type, msg }) => (
+  <div className={`p-toast p-toast--${type}`} role={type === 'error' ? 'alert' : 'status'}>
+    {type === 'error'
+      ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    }
+    {msg}
+  </div>
+);
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export default function Profile() {
-  const dispatch       = useDispatch();
+  const dispatch = useDispatch();
+
+  /* ── auth selectors ── */
   const user           = useSelector(selectUser);
   const fetchStatus    = useSelector(selectAuthStatus);
   const updateStatus   = useSelector(selectUpdateStatus);
@@ -151,42 +109,74 @@ export default function Profile() {
   const passwordStatus = useSelector(selectPasswordStatus);
   const passwordError  = useSelector(selectPasswordError);
 
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
+  /* ── data selectors for live stats ── */
+  const blogs        = useSelector(selectAllBlogs);
+  const blogsStatus  = useSelector(selectBlogsStatus);
+  const portfolios   = useSelector(selectAllPortfolios);
+  const portStatus   = useSelector(selectPortfoliosStatus);
+  const applications = useSelector(selectAllApplications);
+  const appStatus    = useSelector(selectApplicationsStatus);
+  const messages     = useSelector(selectMessages);
+  const msgStatus    = useSelector(selectMessagesStatus);
 
-  /* ── profile form ── */
-  const [profileForm, setProfileForm] = useState({ name: '', avatar: '' });
+  /* ── state ── */
+  const [activeTab, setActiveTab] = useState('overview');
+  const [profileForm, setProfileForm] = useState({ name: '', avatar: '', bio: '' });
   const [profileDirty, setProfileDirty] = useState(false);
-
-  /* ── password form ── */
-  const [pwForm, setPwForm]     = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
-  const [show, setShow]         = useState({ current: false, new: false, confirm: false });
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
   const [pwLocalErr, setPwLocalErr] = useState('');
-
-  /* seed form from store once user loads */
   const seeded = useRef(false);
+
+  const roleMeta = ROLE_META[user?.role] ?? ROLE_META.USER;
+  const isAdmin  = ['ADMIN', 'EDITOR', 'WRITER'].includes(user?.role);
+
+  /* ── bootstrap ── */
   useEffect(() => {
     if (!user) dispatch(fetchMe());
   }, [dispatch, user]);
 
   useEffect(() => {
+    if (isAdmin) {
+      if (blogsStatus  === 'idle') dispatch(fetchBlogs());
+      if (portStatus   === 'idle') dispatch(fetchAllPortfolios());
+      if (appStatus    === 'idle') dispatch(fetchAllApplications());
+      if (msgStatus    === 'idle') dispatch(fetchMessages());
+    }
+  }, [dispatch, isAdmin, blogsStatus, portStatus, appStatus, msgStatus]);
+
+  useEffect(() => {
     if (user && !seeded.current) {
-      setProfileForm({ name: user.name || '', avatar: user.avatar || '' });
+      setProfileForm({ name: user.name || '', avatar: user.avatar || '', bio: user.bio || '' });
       seeded.current = true;
     }
   }, [user]);
 
-  /* cleanup on unmount */
   useEffect(() => () => {
     dispatch(clearUpdateState());
     dispatch(clearPasswordState());
   }, [dispatch]);
 
-  /* reset password form on success */
   useEffect(() => {
     if (passwordStatus === 'succeeded') {
       setPwForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     }
   }, [passwordStatus]);
+
+  /* ── live stats ── */
+  const stats = useMemo(() => {
+    const pendingApps = applications.filter((a) => a.status === 'pending').length;
+    const unreadMsgs  = messages.filter((m) => m.status === 'unread').length;
+    return {
+      blogs:       blogs.length,
+      portfolios:  portfolios.length,
+      pendingApps,
+      unreadMsgs,
+      memberSince: user?.createdAt
+        ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : '—',
+    };
+  }, [blogs, portfolios, applications, messages, user]);
 
   /* ── handlers ── */
   const handleProfileChange = (e) => {
@@ -197,7 +187,7 @@ export default function Profile() {
 
   const handleProfileSubmit = (e) => {
     e.preventDefault();
-    dispatch(updateMe({ name: profileForm.name, avatar: profileForm.avatar || undefined }));
+    dispatch(updateMe({ name: profileForm.name, avatar: profileForm.avatar || undefined, bio: profileForm.bio || undefined }));
     setProfileDirty(false);
   };
 
@@ -209,14 +199,8 @@ export default function Profile() {
 
   const handlePwSubmit = (e) => {
     e.preventDefault();
-    if (pwForm.newPassword !== pwForm.confirmNewPassword) {
-      setPwLocalErr('New passwords do not match.');
-      return;
-    }
-    if (pwForm.newPassword.length < 6) {
-      setPwLocalErr('New password must be at least 6 characters.');
-      return;
-    }
+    if (pwForm.newPassword !== pwForm.confirmNewPassword) { setPwLocalErr('New passwords do not match.'); return; }
+    if (pwForm.newPassword.length < 6) { setPwLocalErr('Password must be at least 6 characters.'); return; }
     dispatch(changePassword({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }));
   };
 
@@ -227,304 +211,837 @@ export default function Profile() {
     setPwLocalErr('');
   };
 
-  /* ── loading skeleton ── */
+  /* ─── Loading skeleton ── */
   if (fetchStatus === 'loading' && !user) {
     return (
-      <div className="auth-page">
-        <div className="auth-glow" aria-hidden="true" />
-        <div className="profile-card fade-in-up">
-          <div className="profile-skeleton-avatar skeleton" />
-          <div className="skeleton skeleton-title" style={{ width: '40%', margin: '1rem auto 0.5rem' }} />
-          <div className="skeleton skeleton-text"  style={{ width: '28%', margin: '0 auto' }} />
+      <div className="p-page">
+        <div className="p-orbs" aria-hidden="true">
+          <div className="p-orb p-orb--1" /><div className="p-orb p-orb--2" /><div className="p-orb p-orb--3" />
+        </div>
+        <div className="p-shell p-shell--loading">
+          <div className="p-header-skel">
+            <div className="p-skel p-skel--avatar" />
+            <div style={{ flex: 1 }}>
+              <div className="p-skel" style={{ width: '40%', height: 28, marginBottom: 12 }} />
+              <div className="p-skel" style={{ width: '60%', height: 16 }} />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const roleMeta     = ROLE_META[user?.role] ?? ROLE_META.USER;
-  const isUpdating   = updateStatus   === 'loading';
-  const isSavingPw   = passwordStatus === 'loading';
-  const pwDisplayErr = pwLocalErr || passwordError;
+  const isUpdating  = updateStatus   === 'loading';
+  const isSavingPw  = passwordStatus === 'loading';
+  const pwErr       = pwLocalErr || passwordError;
 
   return (
-    <div className="auth-page profile-page">
-      <div className="auth-glow" aria-hidden="true" />
+    <div className="p-page">
+      {/* Ambient orbs */}
+      <div className="p-orbs" aria-hidden="true">
+        <div className="p-orb p-orb--1" style={{ '--oc': roleMeta.glow }} />
+        <div className="p-orb p-orb--2" />
+        <div className="p-orb p-orb--3" style={{ '--oc': roleMeta.glow }} />
+      </div>
 
-      <div className="profile-card fade-in-up">
+      <div className="p-shell p-fade-up">
 
-        {/* ── Manage site banner (admins / editors / writers only) ── */}
-        <ManageSiteBanner role={user?.role} />
-
-        {/* ── Avatar + identity ── */}
-        <div className="profile-hero">
-          <div className="profile-avatar">
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user?.name} className="profile-avatar-img" />
-            ) : (
-              <span className="profile-avatar-initials">{initials(user?.name)}</span>
-            )}
+        {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
+        <div className="p-header">
+          <div className="p-avatar-wrap" style={{ '--ac': roleMeta.color, '--ag': roleMeta.glow }}>
+            {user?.avatar
+              ? <img src={user.avatar} alt={user?.name} className="p-avatar-img" />
+              : <span className="p-avatar-initials">{initials(user?.name)}</span>
+            }
+            <div className="p-avatar-ring" />
           </div>
-          <div className="profile-identity">
-            <h2 className="auth-heading" style={{ marginBottom: '0.2rem' }}>{user?.name || '—'}</h2>
-            <p className="profile-email">{user?.email}</p>
-            {user?.role && (
-              <span
-                className="profile-role-badge"
-                style={{ background: `color-mix(in srgb, ${roleMeta.color} 15%, transparent)`,
-                         color: roleMeta.color,
-                         border: `1px solid color-mix(in srgb, ${roleMeta.color} 35%, transparent)` }}
-              >
+
+          <div className="p-header-info">
+            <div className="p-name-row">
+              <h1 className="p-username">{user?.name || '—'}</h1>
+              <span className="p-role-badge" style={{ '--bc': roleMeta.color, '--bg': roleMeta.glow }}>
+                <span className="p-role-sym">{roleMeta.symbol}</span>
                 {roleMeta.label}
               </span>
-            )}
+            </div>
+
+            {profileForm.bio && <p className="p-bio">{profileForm.bio}</p>}
+
+            <div className="p-meta-row">
+              <span className="p-meta-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Joined {stats.memberSince}
+              </span>
+              <span className="p-meta-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                </svg>
+                {user?.email}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* ── Tabs ── */}
-        <div className="profile-tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'profile'}
-            className={`profile-tab ${activeTab === 'profile' ? 'profile-tab--active' : ''}`}
-            onClick={() => handleTabSwitch('profile')}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-            </svg>
-            Profile info
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'security'}
-            className={`profile-tab ${activeTab === 'security' ? 'profile-tab--active' : ''}`}
-            onClick={() => handleTabSwitch('security')}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-            Security
-          </button>
+        {/* ══ TABS ══════════════════════════════════════════════════════════════ */}
+        <div className="p-tabs" role="tablist">
+          <Tab id="overview" active={activeTab === 'overview'} onClick={handleTabSwitch}
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>}
+            label="Overview"
+          />
+          <Tab id="edit" active={activeTab === 'edit'} onClick={handleTabSwitch}
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
+            label="Edit Profile"
+          />
+          <Tab id="security" active={activeTab === 'security'} onClick={handleTabSwitch}
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+            label="Security"
+          />
         </div>
 
-        {/* ══ PROFILE TAB ══════════════════════════════════════════════════════ */}
-        {activeTab === 'profile' && (
-          <form onSubmit={handleProfileSubmit} className="auth-form" noValidate>
+        {/* ══ OVERVIEW TAB ════════════════════════════════════════════════════ */}
+        {activeTab === 'overview' && (
+          <div className="p-content p-fade-up">
 
-            {updateError && (
-              <div className="auth-alert" role="alert">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                {updateError}
-              </div>
-            )}
-
-            {updateStatus === 'succeeded' && (
-              <div className="auth-success" role="status">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Profile updated successfully.
-              </div>
-            )}
-
-            {/* Read-only email */}
-            <div className="auth-field">
-              <label className="form-label">Email address</label>
-              <div className="profile-readonly-field">
-                <span>{user?.email}</span>
-                <span className="profile-readonly-tag">Read-only</span>
-              </div>
-            </div>
-
-            {/* Editable name */}
-            <div className="auth-field">
-              <label htmlFor="name" className="form-label">Display name</label>
-              <input
-                id="name"
-                type="text"
-                name="name"
-                className="form-control"
-                placeholder="Your name"
-                value={profileForm.name}
-                onChange={handleProfileChange}
-                required
-                autoComplete="name"
+            {/* Live stats grid */}
+            <div className="p-stats-grid">
+              <StatCard
+                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+                label="Blog Posts"
+                value={stats.blogs}
+                accent={roleMeta.color}
+                loading={blogsStatus === 'loading'}
               />
-            </div>
-
-            {/* Avatar URL */}
-            <div className="auth-field">
-              <label htmlFor="avatar" className="form-label">
-                Avatar URL
-                <span className="profile-optional"> — optional</span>
-              </label>
-              <input
-                id="avatar"
-                type="url"
-                name="avatar"
-                className="form-control"
-                placeholder="https://example.com/avatar.jpg"
-                value={profileForm.avatar}
-                onChange={handleProfileChange}
-                autoComplete="off"
+              <StatCard
+                icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>}
+                label="Portfolios"
+                value={stats.portfolios}
+                accent={roleMeta.color}
+                loading={portStatus === 'loading'}
               />
-              {profileForm.avatar && (
-                <div className="profile-avatar-preview">
-                  <img
-                    src={profileForm.avatar}
-                    alt="Avatar preview"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              {isAdmin && (
+                <>
+                  <StatCard
+                    icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+                    label="Pending Apps"
+                    value={stats.pendingApps}
+                    accent="#f59e0b"
+                    loading={appStatus === 'loading'}
                   />
-                  <span className="profile-optional">Preview</span>
-                </div>
+                  <StatCard
+                    icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+                    label="Unread Messages"
+                    value={stats.unreadMsgs}
+                    accent="#f43f5e"
+                    loading={msgStatus === 'loading'}
+                  />
+                </>
               )}
             </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary auth-submit"
-              disabled={isUpdating || !profileDirty}
-            >
-              {isUpdating ? (
-                <><span className="auth-spinner" aria-hidden="true" />Saving…</>
-              ) : 'Save changes'}
-            </button>
-          </form>
+            {/* Quick actions — admin only */}
+            {isAdmin && (
+              <Card title="Quick Actions" accent={roleMeta.color}>
+                <div className="p-actions">
+                  <Link to="/admin" className="p-action-btn" style={{ '--ac': roleMeta.color }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                    Admin Dashboard
+                  </Link>
+                  <Link to="/admin/blogs" className="p-action-btn" style={{ '--ac': roleMeta.color }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Manage Blogs
+                  </Link>
+                  <Link to="/admin/applications" className="p-action-btn" style={{ '--ac': '#f59e0b' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    Applications {stats.pendingApps > 0 && <span className="p-badge">{stats.pendingApps}</span>}
+                  </Link>
+                  <Link to="/admin/messages" className="p-action-btn" style={{ '--ac': '#f43f5e' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Messages {stats.unreadMsgs > 0 && <span className="p-badge">{stats.unreadMsgs}</span>}
+                  </Link>
+                </div>
+              </Card>
+            )}
+
+            {/* Recent blogs */}
+            <Card title="Recent Blog Posts" accent={roleMeta.color}>
+              {blogsStatus === 'loading' ? (
+                <div className="p-list">
+                  {[1,2,3].map(i => <div key={i} className="p-list-item p-list-item--skel"><div className="p-skel" style={{ width: '70%', height: 14 }} /><div className="p-skel" style={{ width: '30%', height: 12 }} /></div>)}
+                </div>
+              ) : blogs.length === 0 ? (
+                <p className="p-empty">No blog posts yet.</p>
+              ) : (
+                <div className="p-list">
+                  {blogs.slice(0, 5).map((b) => (
+                    <div key={b.id} className="p-list-item">
+                      <span className="p-list-dot" style={{ background: roleMeta.color }} />
+                      <span className="p-list-title">{b.title}</span>
+                      <span className="p-list-meta">{b.createdAt ? new Date(b.createdAt).toLocaleDateString() : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+          </div>
         )}
 
-        {/* ══ SECURITY TAB ═════════════════════════════════════════════════════ */}
+        {/* ══ EDIT PROFILE TAB ════════════════════════════════════════════════ */}
+        {activeTab === 'edit' && (
+          <div className="p-content p-fade-up">
+            <div className="p-form-card">
+              <h3 className="p-section-title">Edit Profile</h3>
+
+              {updateError    && <Toast type="error"   msg={updateError} />}
+              {updateStatus === 'succeeded' && <Toast type="success" msg="Profile updated successfully." />}
+
+              <form onSubmit={handleProfileSubmit} className="p-form" noValidate>
+                <div className="p-field">
+                  <label className="p-label">Email address</label>
+                  <div className="p-readonly">
+                    <span>{user?.email}</span>
+                    <span className="p-readonly-tag">Read-only</span>
+                  </div>
+                </div>
+
+                <div className="p-field">
+                  <label htmlFor="name" className="p-label">Display name</label>
+                  <input id="name" type="text" name="name" className="p-input"
+                    placeholder="Your name" value={profileForm.name}
+                    onChange={handleProfileChange} required autoComplete="name"
+                  />
+                </div>
+
+                <div className="p-field">
+                  <label htmlFor="bio" className="p-label">
+                    Bio <span className="p-optional">(optional)</span>
+                  </label>
+                  <textarea id="bio" name="bio" className="p-input p-textarea"
+                    placeholder="A short bio…" value={profileForm.bio}
+                    onChange={handleProfileChange} rows={3}
+                  />
+                </div>
+
+                <div className="p-field">
+                  <label htmlFor="avatar" className="p-label">
+                    Avatar URL <span className="p-optional">(optional)</span>
+                  </label>
+                  <input id="avatar" type="url" name="avatar" className="p-input"
+                    placeholder="https://example.com/avatar.jpg" value={profileForm.avatar}
+                    onChange={handleProfileChange} autoComplete="off"
+                  />
+                  {profileForm.avatar && (
+                    <div className="p-avatar-preview">
+                      <img src={profileForm.avatar} alt="Preview"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      <span className="p-optional">Preview</span>
+                    </div>
+                  )}
+                </div>
+
+                <button type="submit" className="p-btn p-btn--primary"
+                  disabled={isUpdating || !profileDirty}
+                  style={{ '--ac': roleMeta.color, '--ag': roleMeta.glow }}
+                >
+                  {isUpdating ? <><Spinner />Saving…</> : 'Save changes'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ══ SECURITY TAB ════════════════════════════════════════════════════ */}
         {activeTab === 'security' && (
-          <div>
-            {/* Member since */}
-            {user?.createdAt && (
-              <div className="profile-meta-row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                Member since{' '}
-                {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </div>
-            )}
+          <div className="p-content p-fade-up">
+            <div className="p-form-card">
+              <h3 className="p-section-title">Change Password</h3>
 
-            <div className="auth-divider" style={{ margin: '1.25rem 0' }} />
+              {pwErr           && <Toast type="error"   msg={pwErr} />}
+              {passwordStatus === 'succeeded' && <Toast type="success" msg="Password changed successfully." />}
 
-            <h5 className="profile-section-title">Change password</h5>
+              <form onSubmit={handlePwSubmit} className="p-form" noValidate>
+                {[
+                  { id: 'currentPassword', label: 'Current password',     key: 'current', auto: 'current-password' },
+                  { id: 'newPassword',     label: 'New password',          key: 'new',     auto: 'new-password' },
+                  { id: 'confirmNewPassword', label: 'Confirm new password', key: 'confirm', auto: 'new-password' },
+                ].map(({ id, label, key, auto }) => (
+                  <div className="p-field" key={id}>
+                    <label htmlFor={id} className="p-label">{label}</label>
+                    <div className="p-input-wrap">
+                      <input id={id} type={showPw[key] ? 'text' : 'password'} name={id}
+                        className="p-input" placeholder="••••••••"
+                        value={pwForm[id]} onChange={handlePwChange}
+                        required autoComplete={auto}
+                      />
+                      <button type="button" className="p-eye-btn"
+                        onClick={() => setShowPw((s) => ({ ...s, [key]: !s[key] }))}
+                        aria-label="Toggle visibility"
+                      >
+                        <EyeIcon visible={showPw[key]} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
 
-            {pwDisplayErr && (
-              <div className="auth-alert" role="alert">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                {pwDisplayErr}
-              </div>
-            )}
+                <button type="submit" className="p-btn p-btn--primary"
+                  disabled={isSavingPw}
+                  style={{ '--ac': roleMeta.color, '--ag': roleMeta.glow }}
+                >
+                  {isSavingPw ? <><Spinner />Updating…</> : 'Update password'}
+                </button>
+              </form>
 
-            {passwordStatus === 'succeeded' && (
-              <div className="auth-success" role="status">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Password changed successfully.
-              </div>
-            )}
+              <div className="p-divider" />
 
-            <form onSubmit={handlePwSubmit} className="auth-form" noValidate style={{ marginTop: '1rem' }}>
-              {/* Current password */}
-              <div className="auth-field">
-                <label htmlFor="currentPassword" className="form-label">Current password</label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="currentPassword"
-                    type={show.current ? 'text' : 'password'}
-                    name="currentPassword"
-                    className="form-control"
-                    placeholder="••••••••"
-                    value={pwForm.currentPassword}
-                    onChange={handlePwChange}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button type="button" className="auth-eye-btn" onClick={() => setShow((s) => ({ ...s, current: !s.current }))} aria-label="Toggle">
-                    <EyeIcon visible={show.current} />
-                  </button>
+              <div className="p-danger-zone">
+                <div>
+                  <p className="p-danger-title">Sign out</p>
+                  <p className="p-danger-desc">Sign out of this device.</p>
                 </div>
+                <button className="p-btn p-btn--danger" onClick={() => dispatch(logout())}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  Sign out
+                </button>
               </div>
-
-              <div className="auth-divider" />
-
-              {/* New password */}
-              <div className="auth-field">
-                <label htmlFor="newPassword" className="form-label">New password</label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="newPassword"
-                    type={show.new ? 'text' : 'password'}
-                    name="newPassword"
-                    className="form-control"
-                    placeholder="Min. 6 characters"
-                    value={pwForm.newPassword}
-                    onChange={handlePwChange}
-                    required
-                    autoComplete="new-password"
-                  />
-                  <button type="button" className="auth-eye-btn" onClick={() => setShow((s) => ({ ...s, new: !s.new }))} aria-label="Toggle">
-                    <EyeIcon visible={show.new} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm new */}
-              <div className="auth-field">
-                <label htmlFor="confirmNewPassword" className="form-label">Confirm new password</label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="confirmNewPassword"
-                    type={show.confirm ? 'text' : 'password'}
-                    name="confirmNewPassword"
-                    className="form-control"
-                    placeholder="Re-enter new password"
-                    value={pwForm.confirmNewPassword}
-                    onChange={handlePwChange}
-                    required
-                    autoComplete="new-password"
-                  />
-                  <button type="button" className="auth-eye-btn" onClick={() => setShow((s) => ({ ...s, confirm: !s.confirm }))} aria-label="Toggle">
-                    <EyeIcon visible={show.confirm} />
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary auth-submit"
-                disabled={isSavingPw}
-              >
-                {isSavingPw ? (
-                  <><span className="auth-spinner" aria-hidden="true" />Updating…</>
-                ) : 'Update password'}
-              </button>
-            </form>
-
-            {/* Danger zone */}
-            <div className="auth-divider" style={{ margin: '1.75rem 0 1.25rem' }} />
-            <div className="profile-danger-zone">
-              <div>
-                <p className="profile-danger-title">Sign out</p>
-                <p className="profile-danger-desc">You will be redirected to the login page.</p>
-              </div>
-              <button
-                type="button"
-                className="btn profile-btn-danger"
-                onClick={() => dispatch(logout())}
-              >
-                Sign out
-              </button>
             </div>
           </div>
         )}
 
       </div>
+
+      {/* ══ STYLES ══════════════════════════════════════════════════════════════ */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+        /* ── CSS variables ── */
+        .p-page {
+          // --bg-deep:   #020b18;
+          // --bg-1:      #060f1e;
+          // --bg-2:      #0a1628;
+          // --bg-3:      #0d1d35;
+          --border:    rgba(56, 130, 210, 0.12);
+          --border-hi: rgba(56, 130, 210, 0.25);
+          // --text-1:    #e2eaf6;
+          // --text-2:    #8ba5c8;
+          // --text-3:    #4d6b8a;
+          // --accent:    #38bdf8;
+          // --font-body: 'DM Sans', sans-serif;
+          // --font-head: 'Space Grotesk', sans-serif;
+          min-height: 100vh;
+          background: var(--bg-deep);
+          font-family: var(--font-body);
+          color: var(--text-1);
+          position: relative;
+          padding: 5rem 1rem;
+          overflow-x: hidden;
+        }
+
+        /* ── Ambient orbs ── */
+        .p-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+        .p-orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(90px);
+          opacity: 0.18;
+        }
+        .p-orb--1 {
+          width: 500px; height: 500px;
+          top: -100px; left: -100px;
+          background: var(--oc, rgba(56,130,210,0.6));
+        }
+        .p-orb--2 {
+          width: 350px; height: 350px;
+          bottom: 10%; right: -80px;
+          background: rgba(129,140,248,0.5);
+        }
+        .p-orb--3 {
+          width: 280px; height: 280px;
+          top: 40%; left: 55%;
+          background: var(--oc, rgba(56,189,248,0.4));
+          opacity: 0.1;
+        }
+
+        /* ── Shell ── */
+        .p-shell {
+          position: relative;
+          z-index: 1;
+          max-width: 820px;
+          margin: 0 auto;
+          padding: 2.5rem 1.5rem 4rem;
+        }
+        .p-shell--loading { padding-top: 4rem; }
+
+        /* ── Header ── */
+        .p-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 1.75rem;
+          padding-bottom: 2rem;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 0;
+        }
+
+        /* ── Avatar ── */
+        .p-avatar-wrap {
+          position: relative;
+          flex-shrink: 0;
+          width: 88px;
+          height: 88px;
+        }
+        .p-avatar-img,
+        .p-avatar-initials {
+          width: 88px; height: 88px;
+          border-radius: 50%;
+          object-fit: cover;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .p-avatar-initials {
+          background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
+          border: 2px solid var(--border-hi);
+          font-family: var(--font-head);
+          font-size: 1.6rem;
+          font-weight: 600;
+          color: var(--ac, var(--accent));
+          letter-spacing: 0.02em;
+        }
+        .p-avatar-ring {
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          border: 1.5px solid var(--ac, var(--accent));
+          opacity: 0.5;
+          box-shadow: 0 0 20px var(--ag, rgba(56,189,248,0.3));
+          animation: p-ring-pulse 3s ease-in-out infinite;
+        }
+        @keyframes p-ring-pulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50%       { opacity: 0.7; transform: scale(1.02); }
+        }
+
+        /* ── Header info ── */
+        .p-header-info { flex: 1; min-width: 0; }
+
+        .p-name-row {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 0.5rem;
+        }
+        .p-username {
+          font-family: var(--font-head);
+          font-size: 1.65rem;
+          font-weight: 700;
+          color: var(--text-1);
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .p-role-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.2rem 0.65rem;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          font-family: var(--font-head);
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--bc);
+          background: color-mix(in srgb, var(--bc) 12%, transparent);
+          border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent);
+          box-shadow: 0 0 12px color-mix(in srgb, var(--bc) 20%, transparent);
+        }
+        .p-role-sym { font-size: 0.9rem; }
+
+        .p-bio {
+          font-size: 0.9rem;
+          color: var(--text-2);
+          margin: 0 0 0.75rem;
+          line-height: 1.5;
+        }
+
+        .p-meta-row {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+        .p-meta-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          font-size: 0.8rem;
+          color: var(--text-3);
+          background: rgba(56,130,210,0.06);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          padding: 0.2rem 0.55rem;
+        }
+
+        /* ── Tabs ── */
+        .p-tabs {
+          display: flex;
+          gap: 0;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 0;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .p-tabs::-webkit-scrollbar { display: none; }
+
+        .p-tab {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          padding: 1rem 1.25rem;
+          background: none;
+          border: none;
+          border-bottom: 2px solid transparent;
+          color: var(--text-3);
+          font-family: var(--font-body);
+          font-size: 0.875rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: color 0.2s, border-color 0.2s;
+          white-space: nowrap;
+          margin-bottom: -1px;
+        }
+        .p-tab:hover { color: var(--text-2); }
+        .p-tab--active {
+          color: var(--text-1);
+          border-bottom-color: var(--accent);
+        }
+
+        /* ── Content area ── */
+        .p-content { display: flex; flex-direction: column; gap: 1.25rem; padding-top: 1.5rem; }
+
+        /* ── Stats grid ── */
+        .p-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+          gap: 1rem;
+        }
+        .p-stat {
+          background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 1.1rem 1.25rem;
+          display: flex;
+          align-items: center;
+          gap: 0.9rem;
+          transition: border-color 0.2s, box-shadow 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+        .p-stat::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, var(--accent, #38bdf8), transparent);
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .p-stat:hover { border-color: var(--border-hi); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .p-stat:hover::before { opacity: 1; }
+        .p-stat-icon { color: var(--accent, #38bdf8); opacity: 0.8; flex-shrink: 0; }
+        .p-stat-body { display: flex; flex-direction: column; min-width: 0; }
+        .p-stat-value {
+          font-family: var(--font-head);
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--text-1);
+          line-height: 1;
+          margin-bottom: 0.2rem;
+        }
+        .p-stat-label { font-size: 0.78rem; color: var(--text-3); }
+
+        /* ── Card ── */
+        .p-card {
+          background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 1.25rem 1.5rem;
+          position: relative;
+          overflow: hidden;
+        }
+        .p-card-title {
+          font-family: var(--font-head);
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--text-2);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin: 0 0 1rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Quick actions ── */
+        .p-actions {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 0.6rem;
+        }
+        .p-action-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.55rem;
+          padding: 0.65rem 1rem;
+          background: rgba(56,130,210,0.06);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          color: var(--text-2);
+          font-size: 0.875rem;
+          font-weight: 500;
+          text-decoration: none;
+          transition: all 0.2s;
+          position: relative;
+        }
+        .p-action-btn:hover {
+          background: color-mix(in srgb, var(--ac, #38bdf8) 10%, transparent);
+          border-color: color-mix(in srgb, var(--ac, #38bdf8) 35%, transparent);
+          color: var(--text-1);
+        }
+
+        /* ── Badge ── */
+        .p-badge {
+          margin-left: auto;
+          min-width: 20px;
+          height: 20px;
+          padding: 0 5px;
+          border-radius: 10px;
+          background: rgba(244,63,94,0.2);
+          border: 1px solid rgba(244,63,94,0.4);
+          color: #fb7185;
+          font-size: 0.7rem;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-family: var(--font-head);
+        }
+
+        /* ── List ── */
+        .p-list { display: flex; flex-direction: column; gap: 0; }
+        .p-list-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.6rem 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .p-list-item:last-child { border-bottom: none; }
+        .p-list-item--skel { gap: 1rem; }
+        .p-list-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .p-list-title { flex: 1; font-size: 0.875rem; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .p-list-meta { font-size: 0.75rem; color: var(--text-3); flex-shrink: 0; }
+        .p-empty { color: var(--text-3); font-size: 0.85rem; font-style: italic; margin: 0; }
+
+        /* ── Form card ── */
+        .p-form-card {
+          background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 1.75rem 2rem;
+        }
+        .p-section-title {
+          font-family: var(--font-head);
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: var(--text-1);
+          margin: 0 0 1.25rem;
+        }
+        .p-form { display: flex; flex-direction: column; gap: 1.1rem; }
+        .p-field { display: flex; flex-direction: column; gap: 0.4rem; }
+        .p-label { font-size: 0.8rem; font-weight: 500; color: var(--text-2); }
+        .p-optional { font-weight: 400; color: var(--text-3); }
+
+        .p-input {
+          background: rgba(6,15,30,0.8);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 0.7rem 1rem;
+          color: var(--text-1);
+          font-family: var(--font-body);
+          font-size: 0.9rem;
+          transition: border-color 0.2s, box-shadow 0.2s;
+          outline: none;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .p-input::placeholder { color: var(--text-3); }
+        .p-input:focus {
+          border-color: var(--border-hi);
+          box-shadow: 0 0 0 3px rgba(56,130,210,0.1);
+        }
+        .p-textarea { resize: vertical; min-height: 80px; }
+
+        .p-input-wrap { position: relative; }
+        .p-input-wrap .p-input { padding-right: 2.75rem; }
+        .p-eye-btn {
+          position: absolute;
+          right: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: var(--text-3);
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          transition: color 0.2s;
+        }
+        .p-eye-btn:hover { color: var(--text-2); }
+
+        .p-readonly {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.7rem 1rem;
+          background: rgba(6,15,30,0.5);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          font-size: 0.9rem;
+          color: var(--text-3);
+        }
+        .p-readonly-tag {
+          font-size: 0.7rem;
+          color: var(--text-3);
+          background: rgba(56,130,210,0.08);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          padding: 0.15rem 0.4rem;
+        }
+
+        .p-avatar-preview {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-top: 0.5rem;
+        }
+        .p-avatar-preview img {
+          width: 44px; height: 44px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 1px solid var(--border-hi);
+        }
+
+        /* ── Buttons ── */
+        .p-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          border-radius: 10px;
+          font-family: var(--font-body);
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: none;
+        }
+        .p-btn--primary {
+          padding: 0.75rem 1.5rem;
+          background: color-mix(in srgb, var(--ac, #38bdf8) 18%, transparent);
+          border: 1px solid color-mix(in srgb, var(--ac, #38bdf8) 40%, transparent);
+          color: var(--ac, #38bdf8);
+          align-self: flex-start;
+          margin-top: 0.25rem;
+        }
+        .p-btn--primary:hover:not(:disabled) {
+          background: color-mix(in srgb, var(--ac, #38bdf8) 25%, transparent);
+          box-shadow: 0 4px 20px var(--ag, rgba(56,189,248,0.25));
+        }
+        .p-btn--primary:disabled { opacity: 0.45; cursor: not-allowed; }
+        .p-btn--danger {
+          padding: 0.65rem 1.25rem;
+          background: rgba(244,63,94,0.08);
+          border: 1px solid rgba(244,63,94,0.25);
+          color: #fb7185;
+        }
+        .p-btn--danger:hover {
+          background: rgba(244,63,94,0.15);
+          border-color: rgba(244,63,94,0.45);
+        }
+
+        /* ── Toast ── */
+        .p-toast {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.75rem 1rem;
+          border-radius: 10px;
+          font-size: 0.875rem;
+          margin-bottom: 0.25rem;
+        }
+        .p-toast--error   { background: rgba(244,63,94,0.08);  border: 1px solid rgba(244,63,94,0.2);  color: #fca5a5; }
+        .p-toast--success { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: #6ee7b7; }
+
+        /* ── Divider ── */
+        .p-divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+        /* ── Danger zone ── */
+        .p-danger-zone {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+        .p-danger-title { font-weight: 600; color: #fca5a5; margin: 0; font-size: 0.9rem; }
+        .p-danger-desc  { color: var(--text-3); font-size: 0.8rem; margin: 0.2rem 0 0; }
+
+        /* ── Skeleton ── */
+        .p-skel {
+          background: linear-gradient(90deg, rgba(56,130,210,0.08) 25%, rgba(56,130,210,0.14) 50%, rgba(56,130,210,0.08) 75%);
+          background-size: 200% 100%;
+          border-radius: 6px;
+          animation: p-shimmer 1.6s ease-in-out infinite;
+          display: block;
+        }
+        .p-skel--sm  { width: 48px; height: 1em; display: inline-block; border-radius: 4px; }
+        .p-skel--avatar { width: 88px; height: 88px; border-radius: 50%; }
+        @keyframes p-shimmer {
+          0%   { background-position:  200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .p-header-skel { display: flex; gap: 1.75rem; align-items: center; }
+
+        /* ── Spinner ── */
+        .p-spinner {
+          display: inline-block;
+          border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.2);
+          border-top-color: currentColor;
+          animation: p-spin 0.7s linear infinite;
+        }
+        @keyframes p-spin { to { transform: rotate(360deg); } }
+
+        /* ── Fade-up ── */
+        .p-fade-up { animation: p-fade-up 0.35s ease both; }
+        @keyframes p-fade-up {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+          .p-shell { padding: 1.5rem 1rem 3rem; }
+          .p-header { flex-direction: column; align-items: center; text-align: center; }
+          .p-name-row { justify-content: center; }
+          .p-meta-row { justify-content: center; }
+          .p-stats-grid { grid-template-columns: 1fr 1fr; }
+          .p-actions { grid-template-columns: 1fr; }
+          .p-form-card { padding: 1.25rem 1rem; }
+          .p-btn--primary { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 }

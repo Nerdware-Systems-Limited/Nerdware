@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, clearAuthError, selectAuthStatus, selectAuthError, selectIsAuthenticated } from '../redux/slices/authslice';
+import SocialAuthButtons from '../components/common/SocialAuthButtons';
 
 export default function Register() {
   const dispatch        = useDispatch();
@@ -209,6 +210,8 @@ export default function Register() {
             ) : 'Create account'}
           </button>
         </form>
+
+        <SocialAuthButtons />
 
         <p className="auth-footer-text">
           Already have an account?{' '}

@@ -1,7 +1,7 @@
 import ky from 'ky';
-
+const API_URL = import.meta.env.VITE_API_URL;
 const api = ky.create({
-  prefix: 'https://nerdware-backend.onrender.com/api/',
+  prefix: API_URL+'/api/',
   headers: {
     'Content-Type': 'application/json',
   },

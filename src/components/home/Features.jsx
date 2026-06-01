@@ -57,7 +57,7 @@ const Features = () => {
           {features.map((feature) => (
             <Col key={feature.id} md={4}>
               <div className="feature-item h-100">
-                <div className="icon-wrapper mb-4">
+                <div className="icon-wrapper d-flex justify-content-center align-items-center mb-3">
                   {feature.icon}
                 </div>
                 <h3 className="feature-title">{feature.title}</h3>

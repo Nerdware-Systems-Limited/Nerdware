@@ -6,6 +6,7 @@ import portfolioReducer from './slices/portfolioSlice';
 import testimonialReducer from './slices/testimonialSlice';
 import applicationsReducer from './slices/applicationsSlice';
 import miscReducer from './slices/miscSlice';
+import commentReducer from './slices/commentSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,5 +17,6 @@ export const store = configureStore({
     testimonials: testimonialReducer,
     applications: applicationsReducer,
     misc:         miscReducer,
+    comments: commentReducer,
   },
 });
