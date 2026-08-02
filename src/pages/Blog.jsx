@@ -10,6 +10,7 @@ import {
   selectAllBlogs,
   selectBlogsStatus,
   selectBlogsError,
+  selectBlogsPagination,
 } from '../redux/slices/Blogslice';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
@@ -168,27 +169,31 @@ const Blog = () => {
   const posts = useSelector(selectAllBlogs);
   const status = useSelector(selectBlogsStatus);
   const error = useSelector(selectBlogsError);
+  const pagination = useSelector(selectBlogsPagination);
 
   const [activeCategory, setActiveCategory] = useState('All');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchBlogs());
-    }
-  }, [dispatch, status]);
+    dispatch(fetchBlogs({ page, category: activeCategory }));
+  }, [dispatch, page, activeCategory]);
+
+  const handleCategoryChange = (c) => {
+    setActiveCategory(c);
+    setPage(1);
+  };
 
   const isLoading = status === 'idle' || status === 'loading';
 
   const categories = useMemo(() => {
     const set = new Set();
     posts.forEach((p) => p.category && set.add(p.category));
-    return ['All', ...Array.from(set)];
-  }, [posts]);
-
-  const filtered = useMemo(() => {
-    if (activeCategory === 'All') return posts;
-    return posts.filter((p) => p.category === activeCategory);
+    return ['All', activeCategory, ...Array.from(set)].filter(
+      (c, i, arr) => arr.indexOf(c) === i
+    );
   }, [posts, activeCategory]);
+
+  const filtered = posts;
 
   const topTags = useMemo(() => {
     const set = new Set();
@@ -605,6 +610,35 @@ const Blog = () => {
           }
           .medium-blog .medium-follow:hover { background: var(--medium-follow-hover-bg); }
 
+          /* ── Pagination ── */
+          .medium-blog .medium-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.25rem;
+            padding: 2.5rem 0 1rem;
+            font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+          }
+          .medium-blog .medium-page-btn {
+            border: 1px solid var(--medium-follow-border);
+            background: transparent;
+            color: var(--medium-fg);
+            padding: 8px 18px;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background .15s ease;
+          }
+          .medium-blog .medium-page-btn:hover:not(:disabled) { background: var(--medium-follow-hover-bg); }
+          .medium-blog .medium-page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+          }
+          .medium-blog .medium-page-status {
+            font-size: 0.8125rem;
+            color: var(--medium-muted);
+          }
+
           /* ── States ── */
           .medium-blog .medium-state {
             text-align: center;
@@ -641,7 +675,7 @@ const Blog = () => {
             </h1>
             <p className="medium-hero-sub">
               Expert takes on web development, mobile, SEO, and the technologies
-              shaping tomorrow — written by engineers, for engineers.
+              shaping tomorrow, written by engineers, for engineers.
             </p>
           </Container>
         </section>
@@ -655,7 +689,7 @@ const Blog = () => {
                   <button
                     key={c}
                     className={`medium-tab ${c === activeCategory ? 'active' : ''}`}
-                    onClick={() => setActiveCategory(c)}
+                    onClick={() => handleCategoryChange(c)}
                   >
                     {c}
                   </button>
@@ -676,7 +710,7 @@ const Blog = () => {
                   <p className="mb-4">{error}</p>
                   <button
                     className="btn btn-outline-dark btn-sm"
-                    onClick={() => dispatch(fetchBlogs())}
+                    onClick={() => dispatch(fetchBlogs({ page, category: activeCategory }))}
                   >
                     Try again
                   </button>
@@ -696,7 +730,7 @@ const Blog = () => {
               {/* Empty */}
               {status === 'succeeded' && filtered.length === 0 && (
                 <div className="medium-state">
-                  No posts in this category yet — check back soon.
+                  No posts in this category yet. Check back soon.
                 </div>
               )}
 
@@ -708,6 +742,29 @@ const Blog = () => {
                     <PostRow key={p._id || p.id} post={p} />
                   ))}
                 </>
+              )}
+
+              {/* Pagination */}
+              {status === 'succeeded' && pagination.pages > 1 && (
+                <nav className="medium-pagination" aria-label="Blog pagination">
+                  <button
+                    className="medium-page-btn"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={pagination.page <= 1}
+                  >
+                    ← Prev
+                  </button>
+                  <span className="medium-page-status">
+                    Page {pagination.page} of {pagination.pages}
+                  </span>
+                  <button
+                    className="medium-page-btn"
+                    onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                    disabled={pagination.page >= pagination.pages}
+                  >
+                    Next →
+                  </button>
+                </nav>
               )}
             </div>
 

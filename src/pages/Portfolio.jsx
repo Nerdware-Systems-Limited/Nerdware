@@ -79,14 +79,6 @@ const PortfolioCard = ({ project }) => {
               {project.description}
             </Card.Text>
 
-            {/* Author */}
-            {project.author?.name && (
-              <small className="mb-3 d-block">
-                By{' '}
-                <span className="text-primary">{project.author.name}</span>
-              </small>
-            )}
-
             {/* Tech stack */}
             <div className="portfolio-technologies">
               {(project.technologies || []).map((tech, i) => (

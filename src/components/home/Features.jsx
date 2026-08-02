@@ -17,7 +17,7 @@ const features = [
   {
     id: 3,
     title: 'Cloud Kids Mashinani',
-    description: 'Our flagship initiative creating societal impact through technology — empowering communities from the ground up.',
+    description: 'Our flagship initiative creating societal impact through technology, empowering communities from the ground up.',
     icon: <FaCloudDownloadAlt className="service-icon" size={24} />,
   },
 ];

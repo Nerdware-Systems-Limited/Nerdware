@@ -147,21 +147,6 @@ const S = {
     color: 'var(--text-secondary)',
     borderBottom: '1px solid var(--border-subtle)',
   },
-  tagRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: '1.25rem',
-  },
-  tag: {
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    padding: '3px 12px',
-    borderRadius: 'var(--radius-full)',
-    border: '1px solid',
-    letterSpacing: '0.02em',
-  },
-
   /* new badge on card */
   newBadge: {
     position: 'absolute',
@@ -233,10 +218,9 @@ const services = [
   {
     id: 1,
     title: 'Web Development',
-    description: 'Bespoke web applications built to scale — from landing pages to complex SaaS platforms.',
+    description: 'Bespoke web applications built to scale, from landing pages to complex SaaS platforms.',
     icon: <FaLaptopCode size={26} />,
     color: '#3b82f6',
-    tags: ['React', 'Next.js', 'Node.js'],
     features: [
       'Responsive & accessible UI',
       'E-commerce & payment integration',
@@ -253,7 +237,6 @@ const services = [
     description: 'Native and cross-platform apps that deliver exceptional experiences on every device.',
     icon: <FaMobileAlt size={26} />,
     color: '#8b5cf6',
-    tags: ['React Native', 'Flutter', 'iOS/Android'],
     features: [
       'iOS & Android development',
       'Cross-platform with one codebase',
@@ -267,10 +250,9 @@ const services = [
   {
     id: 3,
     title: 'Search Engine Optimisation',
-    description: 'Data-driven SEO strategies that move the needle — from technical audits to content authority.',
+    description: 'Data-driven SEO strategies that move the needle, from technical audits to content authority.',
     icon: <FaSearch size={26} />,
     color: '#10b981',
-    tags: ['On-page', 'Technical', 'Local SEO'],
     features: [
       'Full technical SEO audit',
       'Keyword research & intent mapping',
@@ -284,10 +266,9 @@ const services = [
   {
     id: 4,
     title: 'Data Analysis',
-    description: 'Transform raw data into strategic intelligence — interactive dashboards, predictive models, and boardroom-ready reports.',
+    description: 'Transform raw data into strategic intelligence: interactive dashboards, predictive models, and boardroom-ready reports.',
     icon: <FaChartBar size={26} />,
     color: '#f59e0b',
-    tags: ['Python', 'Power BI', 'SQL'],
     features: [
       'Data cleaning & pipeline setup',
       'Interactive dashboards & reports',
@@ -304,7 +285,6 @@ const services = [
     description: 'Eliminate busywork. We map, script, and orchestrate your processes so your team focuses on high-value work.',
     icon: <FaProjectDiagram size={26} />,
     color: '#ee4f27',
-    tags: ['n8n', 'Zapier', 'Make'],
     features: [
       'End-to-end process mapping',
       'Multi-step workflow scripting',
@@ -321,7 +301,6 @@ const services = [
     description: 'Custom bots and RPA scripts that handle your repetitive digital tasks 24/7 without human intervention.',
     icon: <FaRobot size={26} />,
     color: '#06b6d4',
-    tags: ['RPA', 'Python bots', 'Scraping'],
     features: [
       'Web scraping & data collection',
       'Browser & UI automation',
@@ -334,11 +313,10 @@ const services = [
   },
   {
     id: 7,
-    title: 'Digital Employees — AI Agents',
-    description: 'Deploy intelligent AI agents that think, reason, and act like a specialist team member — available 24/7 at a fraction of the cost.',
+    title: 'Digital Employees: AI Agents',
+    description: 'Deploy intelligent AI agents that think, reason, and act like a specialist team member, available 24/7 at a fraction of the cost.',
     icon: <FaUserTie size={26} />,
     color: '#fd8925',
-    tags: ['LLM', 'RAG', 'Agentic AI'],
     features: [
       'Custom LLM-powered agents',
       'Retrieval-augmented knowledge bases',
@@ -354,7 +332,7 @@ const services = [
 const process = [
   { n: '01', title: 'Discovery', desc: 'Deep-dive into your goals, constraints, and existing systems.' },
   { n: '02', title: 'Strategy', desc: 'We design a detailed roadmap with milestones and success metrics.' },
-  { n: '03', title: 'Build', desc: 'Agile sprints with regular demos — you see progress every week.' },
+  { n: '03', title: 'Build', desc: 'Agile sprints with regular demos, so you see progress every week.' },
   { n: '04', title: 'Launch & Scale', desc: 'Deployment, handover, monitoring, and ongoing growth support.' },
 ];
 
@@ -425,14 +403,6 @@ function ServiceCard({ service, delay = 0 }) {
         ))}
       </div>
 
-      {/* tech tags */}
-      <div style={S.tagRow}>
-        {service.tags.map((t) => (
-          <span key={t} style={{ ...S.tag, color: service.color, borderColor: `${service.color}40`, background: `${service.color}10` }}>
-            {t}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
@@ -486,7 +456,7 @@ const Services = () => {
     <>
       <SEO
         title="Our Services"
-        description="Web development, mobile apps, SEO, data analysis, workflow automation, and AI agents — comprehensive digital solutions."
+        description="Web development, mobile apps, SEO, data analysis, workflow automation, and AI agents, comprehensive digital solutions."
         keywords="web development, mobile apps, SEO, data analysis, workflow automation, AI agents, digital employees"
         url="/services"
       />
@@ -586,7 +556,7 @@ const Services = () => {
             </h1>
 
             <p style={{ ...S.heroSub, animation: 'fadeInUp 0.7s ease 0.2s both' }}>
-              From custom software and SEO to AI-powered digital employees that work around the clock —
+              From custom software and SEO to AI-powered digital employees that work around the clock,
               we build, automate, and scale your competitive edge.
             </p>
 
@@ -662,7 +632,7 @@ const Services = () => {
                   </span>
                 </h2>
                 <p style={S.sectionDesc}>
-                  At Nerdware System Technologies, we deliver the full spectrum of digital capabilities —
+                  At Nerdware System Technologies, we deliver the full spectrum of digital capabilities,
                   so you never have to juggle multiple agencies again.
                 </p>
               </Col>
@@ -717,7 +687,7 @@ const Services = () => {
                 </h2>
                 <p style={{ ...S.sectionDesc, marginBottom: '2rem' }}>
                   AI Agents don't sleep, don't get sick, and don't need onboarding time. They handle
-                  customer inquiries, qualify leads, process data, manage inboxes, and execute workflows —
+                  customer inquiries, qualify leads, process data, manage inboxes, and execute workflows,
                   all while learning from every interaction.
                 </p>
                 <a href="/contact" className="svc-cta-btn" style={{ ...S.heroCta, display: 'inline-flex', transition: 'all 0.25s ease' }}>
@@ -788,7 +758,7 @@ const Services = () => {
                   </span>
                 </h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '1.0625rem', marginBottom: '2.5rem', maxWidth: 520, margin: '0 auto 2.5rem' }}>
-                  Whether you need a website, an automation, or a full AI agent workforce —
+                  Whether you need a website, an automation, or a full AI agent workforce,
                   we're the team that delivers.
                 </p>
                 <div className="svc-btn-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>

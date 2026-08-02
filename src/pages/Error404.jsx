@@ -153,7 +153,7 @@ const Error404 = () => {
   return (
     <>
       <SEO
-        title="404 — Page Not Found | Nerdware System Technologies"
+        title="404: Page Not Found | Nerdware System Technologies"
         description="The page you're looking for doesn't exist. Return to Nerdware Technologies homepage or explore our services."
         keywords="404, page not found, error, Nerdware Technologies"
         url="/404"
@@ -271,7 +271,7 @@ const Error404 = () => {
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic', margin: '0 0 0.5rem', lineHeight: 1.6 }}>
                   "There are only 10 types of people in the world: those who understand binary and those who don't."
                 </p>
-                <span style={{ fontSize: '0.75rem', color: 'rgba(238,79,39,0.7)', fontWeight: 600, letterSpacing: '0.04em' }}>— Classic Programming Joke</span>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(238,79,39,0.7)', fontWeight: 600, letterSpacing: '0.04em' }}>Classic Programming Joke</span>
               </div>
 
             </Col>

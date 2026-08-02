@@ -279,7 +279,7 @@ const AdminTestimonial = () => {
       {/* ── Create / Edit modal ── */}
       {modal && (modal.type === 'create' || modal.type === 'edit') && (
         <Modal
-          title={modal.type === 'create' ? 'New testimonial' : `Edit — ${modal.data.author}`}
+          title={modal.type === 'create' ? 'New testimonial' : `Edit: ${modal.data.author}`}
           onClose={() => setModal(null)}
           maxWidth={640}
           footer={

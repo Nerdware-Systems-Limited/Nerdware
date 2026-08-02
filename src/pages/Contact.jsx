@@ -268,7 +268,7 @@ const Contact = () => {
   return (
     <>
       <SEO
-        title="Contact Us — Nerdware System Technologies"
+        title="Contact Us | Nerdware System Technologies"
         description="Get in touch with Nerdware Technologies for web development, mobile apps, AI agents, and automation. We're here to help you succeed."
         keywords="contact, web development, mobile apps, AI agents, automation, Nerdware Technologies"
         url="/contact"
@@ -317,7 +317,7 @@ const Contact = () => {
               lineHeight: 1.75,
               animation: 'fadeInUp 0.6s ease 0.2s both',
             }}>
-              Have a project in mind? Whether it's a website, mobile app, automation, or an AI agent —
+              Have a project in mind? Whether it's a website, mobile app, automation, or an AI agent,
               we'd love to hear from you. Response guaranteed within 24 hours.
             </p>
 
@@ -504,7 +504,7 @@ const Contact = () => {
                       <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>Our Promise</span>
                     </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>
-                      Every inquiry gets a personal response — not a bot. We'll reply within <strong style={{ color: 'var(--text-secondary)' }}>24 hours</strong> and schedule a free consultation to scope your project together.
+                      Every inquiry gets a personal response, not a bot. We'll reply within <strong style={{ color: 'var(--text-secondary)' }}>24 hours</strong> and schedule a free consultation to scope your project together.
                     </p>
                   </div>
                 </div>

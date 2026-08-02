@@ -24,13 +24,18 @@ const extractError = async (err) => {
 /** GET /api/blogs */
 export const fetchBlogs = createAsyncThunk(
   'blogs/fetchBlogs',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 9, category, search } = {}, { rejectWithValue }) => {
     try {
-      const res = await api.get('blogs').json();
-      if (res.data?.blogs)    return res.data.blogs;
-      if (res.blogs)          return res.blogs;
-      if (Array.isArray(res)) return res;
-      return rejectWithValue('Invalid data structure from API');
+      const searchParams = { page, limit };
+      if (category && category !== 'All') searchParams.category = category;
+      if (search) searchParams.search = search;
+
+      const res = await api.get('blogs', { searchParams }).json();
+      const blogs = res.data?.blogs || res.blogs || (Array.isArray(res) ? res : null);
+      if (!blogs) return rejectWithValue('Invalid data structure from API');
+
+      const pagination = res.data?.pagination || res.pagination || { page, limit, total: blogs.length, pages: 1 };
+      return { blogs, pagination };
     } catch (err) {
       return rejectWithValue(await extractError(err));
     }
@@ -100,6 +105,7 @@ const blogSlice = createSlice({
   name: 'blogs',
   initialState: {
     items: [],
+    pagination: { page: 1, limit: 9, total: 0, pages: 1 },
     currentPost: null,
     status: 'idle',           // list:   idle | loading | succeeded | failed
     detailStatus: 'idle',     // detail: idle | loading | succeeded | failed
@@ -121,7 +127,11 @@ const blogSlice = createSlice({
     /* fetchBlogs */
     builder
       .addCase(fetchBlogs.pending,   (state)          => { state.status = 'loading';   state.error = null; })
-      .addCase(fetchBlogs.fulfilled, (state, action)  => { state.status = 'succeeded'; state.items = action.payload; })
+      .addCase(fetchBlogs.fulfilled, (state, action)  => {
+        state.status = 'succeeded';
+        state.items = action.payload.blogs;
+        state.pagination = action.payload.pagination;
+      })
       .addCase(fetchBlogs.rejected,  (state, action)  => { state.status = 'failed';    state.error = action.payload; });
 
     /* fetchBlogBySlug */
@@ -159,6 +169,7 @@ export const { clearCurrentPost, clearMutationState } = blogSlice.actions;
 
 /* ─── Selectors ──────────────────────────────────────────────────────────── */
 export const selectAllBlogs       = (state) => state.blogs.items;
+export const selectBlogsPagination = (state) => state.blogs.pagination;
 export const selectCurrentPost    = (state) => state.blogs.currentPost;
 export const selectBlogsStatus    = (state) => state.blogs.status;
 export const selectDetailStatus   = (state) => state.blogs.detailStatus;

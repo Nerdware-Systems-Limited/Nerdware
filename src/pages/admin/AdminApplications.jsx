@@ -415,7 +415,7 @@ const AdminApplications = () => {
       {/* ── Update status modal ──────────────────────────────────────────── */}
       {modal === 'status' && selected && (
         <Modal
-          title={`Update status — ${selected.name || selected.fullName}`}
+          title={`Update status: ${selected.name || selected.fullName}`}
           onClose={closeModal}
           footer={
             <>
