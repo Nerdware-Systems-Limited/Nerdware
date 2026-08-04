@@ -1,4 +1,4 @@
-import { Navbar, Nav, Container } from 'react-bootstrap';
+import { Navbar, Nav, Container, Dropdown } from 'react-bootstrap';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,6 +9,7 @@ import {
   fetchMe,
   logout,
 } from '../../redux/slices/authslice';
+import { useAuthModal } from '../../context/AuthModalContext';
 
 const Header = () => {
   const [expanded, setExpanded] = useState(false);
@@ -20,6 +21,7 @@ const Header = () => {
   const authStatus = useSelector(selectAuthStatus);
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
+  const { openLogin, openRegister } = useAuthModal();
 
   // On page load: token exists in localStorage but Redux user is null → hydrate.
   // This mirrors what AdminLayout does and keeps the Header in sync after a hard
@@ -33,6 +35,7 @@ const Header = () => {
   }, [isAuthenticated, user, authStatus, dispatch]);
   
   const avatarUrl = user?.avatar || "https://gravatar.com/avatar/c27ed039266d0e757973489b42b30064?s=400&d=robohash&r=x";
+  const isAdmin = ['ADMIN', 'EDITOR'].includes(user?.role);
 
   // Collapse navbar on route change
   useEffect(() => {
@@ -156,24 +159,29 @@ const Header = () => {
           <div className="d-none d-lg-flex align-items-center" style={{ gap: '0.625rem', flexShrink: 0 }}>
             {!isAuthenticated ? (
             <>
-            <Link
-              to="/login"
+            <button
+              type="button"
+              onClick={openLogin}
               style={{
                 fontSize: '0.875rem',
                 fontWeight: 500,
                 color: 'rgba(255,255,255,0.75)',
                 padding: '0.5rem 0.875rem',
                 borderRadius: '8px',
+                border: 'none',
+                background: 'transparent',
                 textDecoration: 'none',
                 transition: 'color 0.2s ease',
+                cursor: 'pointer',
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.75)'}
             >
               Sign in
-            </Link>
-            <Link
-              to="/register"
+            </button>
+            <button
+              type="button"
+              onClick={openRegister}
               className="btn-get-started"
               style={{
                 display: 'inline-flex',
@@ -189,6 +197,7 @@ const Header = () => {
                 textDecoration: 'none',
                 transition: 'opacity 0.2s ease, transform 0.2s ease',
                 whiteSpace: 'nowrap',
+                cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = '0.88';
@@ -203,44 +212,71 @@ const Header = () => {
               <svg width="14" height="14" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fill="currentColor" d="m221.66 133.66-72 72a8 8 0 0 1-11.32-11.32L196.69 136H40a8 8 0 0 1 0-16h156.69l-58.35-58.34a8 8 0 0 1 11.32-11.32l72 72a8 8 0 0 1 0 11.32"/>
               </svg>
-            </Link>
+            </button>
             </>
             ) : (
-              <Link
-                to="/profile"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  textDecoration: 'none',
-                }}
-              >
-                <img
-                  src={avatarUrl}
-                  alt={user?.name || "User"}
+              <Dropdown align="end">
+                <Dropdown.Toggle
+                  as="button"
+                  bsPrefix="nw-profile-toggle"
+                  id="profile-dropdown-desktop"
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2px solid #fff',
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/40?text=👤";
-                  }}
-                />
-
-                <span
-                  style={{
-                    color: '#fff',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0.375rem 0.5rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
                   }}
                 >
-                  {user?.name}
-                </span>
-                </Link>
+                  <img
+                    src={avatarUrl}
+                    alt={user?.name || "User"}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid #fff',
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "https://via.placeholder.com/40?text=👤";
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      color: '#fff',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {user?.name}
+                  </span>
+
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu className="nw-profile-menu">
+                  <Dropdown.Item as={Link} to="/profile">
+                    Profile
+                  </Dropdown.Item>
+                  {isAdmin && (
+                    <Dropdown.Item as={Link} to="/admin">
+                      Admin
+                    </Dropdown.Item>
+                  )}
+                  <Dropdown.Divider />
+                  <Dropdown.Item onClick={() => dispatch(logout())}>
+                    Logout
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
                 )}
           </div>
 
@@ -351,9 +387,9 @@ const Header = () => {
             >
               {!isAuthenticated ? (
                 <>
-                  <Link
-                    to="/login"
-                    onClick={() => setExpanded(false)}
+                  <button
+                    type="button"
+                    onClick={() => { setExpanded(false); openLogin(); }}
                     style={{
                       display: 'block',
                       textAlign: 'center',
@@ -365,14 +401,15 @@ const Header = () => {
                       fontSize: '0.9rem',
                       fontWeight: 500,
                       textDecoration: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     Sign in
-                  </Link>
+                  </button>
 
-                  <Link
-                    to="/register"
-                    onClick={() => setExpanded(false)}
+                  <button
+                    type="button"
+                    onClick={() => { setExpanded(false); openRegister(); }}
                     style={{
                       display: 'flex',
                       justifyContent: 'center',
@@ -382,20 +419,20 @@ const Header = () => {
                       borderRadius: '8px',
                       background: 'linear-gradient(90deg, #fd8925 0%, #ee4f27 100%)',
                       color: '#ffffff',
+                      border: 'none',
                       fontSize: '0.9rem',
                       fontWeight: 600,
                       textDecoration: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     Sign up
-                  </Link>
+                  </button>
                 </>
               ) : (
                 <>
-                  {/* Profile Block */}
-                  <Link
-                    to="/profile"
-                    onClick={() => setExpanded(false)}
+                  {/* Profile info (not a link — use the actions below) */}
+                  <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -404,7 +441,6 @@ const Header = () => {
                       borderRadius: '8px',
                       background: 'rgba(255,255,255,0.06)',
                       border: '1px solid rgba(255,255,255,0.12)',
-                      textDecoration: 'none',
                     }}
                   >
                     <img
@@ -427,12 +463,52 @@ const Header = () => {
                         {user?.name}
                       </span>
                       <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>
-                        View profile
+                        {user?.email}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Actions */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setExpanded(false)}
+                    style={{
+                      display: 'block',
+                      textAlign: 'center',
+                      padding: '0.625rem 1rem',
+                      borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      color: 'rgba(255,255,255,0.80)',
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Profile
                   </Link>
 
-                  {/* Optional: Logout */}
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setExpanded(false)}
+                      style={{
+                        display: 'block',
+                        textAlign: 'center',
+                        padding: '0.625rem 1rem',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: 'rgba(255,255,255,0.80)',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      Admin
+                    </Link>
+                  )}
+
                   <button
                     onClick={() => {
                       dispatch(logout());

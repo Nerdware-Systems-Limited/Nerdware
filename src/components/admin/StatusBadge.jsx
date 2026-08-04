@@ -3,6 +3,7 @@ const MAP = {
   DRAFT:       'warn',
   ARCHIVED:    'muted',
   PENDING:     'warn',
+  APPROVED:    'success',
   REVIEWING:   'info',
   SHORTLISTED: 'success',
   INTERVIEWED: 'brand',

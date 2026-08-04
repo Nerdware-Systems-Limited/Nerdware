@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import PageHeader from '../../components/admin/PageHeader';
 import StatusBadge from '../../components/admin/StatusBadge';
@@ -9,9 +9,12 @@ import EmptyState from '../../components/admin/EmptyState';
 
 import {
   fetchAllUsers, createUser, updateUser, deleteUser,
-  selectAllUsers, selectUsersStatus, selectUsersError,
+  selectAllUsers, selectUsersStatus, selectUsersError, selectUsersPagination,
   selectActionStatus, selectActionError, clearActionState,
 } from '../../redux/slices/userSlice';
+
+const ROLE_TABS = ['ALL', 'ADMIN', 'EDITOR', 'USER'];
+const LIMIT = 10;
 
 const initials = (name = '?') =>
   name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -21,22 +24,44 @@ const AdminUsers = () => {
   const users     = useSelector(selectAllUsers);
   const status    = useSelector(selectUsersStatus);
   const error     = useSelector(selectUsersError);
+  const pagination = useSelector(selectUsersPagination);
   const actStatus = useSelector(selectActionStatus);
   const actError  = useSelector(selectActionError);
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [role, setRole]     = useState('ALL');
+  const [page, setPage]     = useState(1);
   const [modal, setModal]   = useState(null);
   const [form, setForm]     = useState({ name: '', email: '', password: '', role: 'USER', isActive: true });
   const [fErr, setFErr]     = useState({});
 
-  useEffect(() => { dispatch(fetchAllUsers()); }, [dispatch]);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [role, debouncedSearch]);
+
+  useEffect(() => {
+    dispatch(fetchAllUsers({
+      page, limit: LIMIT,
+      role: role !== 'ALL' ? role : undefined,
+      search: debouncedSearch || undefined,
+    }));
+  }, [dispatch, page, role, debouncedSearch]);
+
   useEffect(() => {
     if (actStatus === 'succeeded') {
       setModal(null);
       dispatch(clearActionState());
-      dispatch(fetchAllUsers());
+      dispatch(fetchAllUsers({
+        page, limit: LIMIT,
+        role: role !== 'ALL' ? role : undefined,
+        search: debouncedSearch || undefined,
+      }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actStatus, dispatch]);
 
   const openCreate = () => {
@@ -62,14 +87,7 @@ const AdminUsers = () => {
     else dispatch(updateUser({ id: modal.data.id, name: form.name, role: form.role, isActive: form.isActive }));
   };
 
-  const filtered = useMemo(() => users.filter((u) => {
-    if (role !== 'ALL' && u.role !== role) return false;
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return [u.name, u.email].some((v) => v?.toLowerCase().includes(s));
-  }), [users, role, search]);
-
-  const isLoading = status === 'loading' && !users.length;
+  const isLoading = status === 'loading';
 
   return (
     <>
@@ -84,13 +102,19 @@ const AdminUsers = () => {
       />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        {['ALL', 'ADMIN', 'EDITOR', 'USER'].map((r) => (
+        {ROLE_TABS.map((r) => (
           <button
             key={r}
             onClick={() => setRole(r)}
             className={`nw-btn nw-btn--sm ${role === r ? 'nw-btn--primary' : 'nw-btn--ghost'}`}
           >
             {r === 'ALL' ? 'All' : r.charAt(0) + r.slice(1).toLowerCase()}
+            {role === r && (
+              <span style={{
+                padding: '0 7px', borderRadius: 999,
+                background: 'rgba(0,0,0,0.25)', fontSize: 11,
+              }}>{pagination.total}</span>
+            )}
           </button>
         ))}
       </div>
@@ -111,9 +135,10 @@ const AdminUsers = () => {
           <div className="nw-empty"><span className="nw-spinner" /> Loading users…</div>
         ) : error ? (
           <div className="nw-empty" style={{ color: '#fca5a5' }}>{error}</div>
-        ) : !filtered.length ? (
+        ) : !users.length ? (
           <EmptyState icon={UsersIcon} title="No users found" message="Try adjusting your search or filters." />
         ) : (
+          <>
           <table className="nw-table">
             <thead>
               <tr>
@@ -125,7 +150,7 @@ const AdminUsers = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u) => (
+              {users.map((u) => (
                 <tr key={u.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -155,6 +180,33 @@ const AdminUsers = () => {
               ))}
             </tbody>
           </table>
+
+          {pagination.pages > 1 && (
+            <div className="nw-pagination">
+              <span className="nw-pagination__status">
+                Page {pagination.page} of {pagination.pages} · {pagination.total} users
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  type="button"
+                  className="nw-btn nw-btn--ghost nw-btn--sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={pagination.page <= 1}
+                >
+                  <ChevronLeft size={15} /> Prev
+                </button>
+                <button
+                  type="button"
+                  className="nw-btn nw-btn--ghost nw-btn--sm"
+                  onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                  disabled={pagination.page >= pagination.pages}
+                >
+                  Next <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
 

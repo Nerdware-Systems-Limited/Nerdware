@@ -1,5 +1,6 @@
 import { useLocation, Link } from 'react-router-dom';
-import { Search, Bell, Menu, ExternalLink } from 'lucide-react';
+import { Search, Menu, ExternalLink } from 'lucide-react';
+import AdminNotifications from './AdminNotifications';
 
 const TITLES = {
   '/admin':           { crumb: 'Overview' },
@@ -51,10 +52,7 @@ const AdminTopbar = ({ user, onOpenMobileMenu }) => {
         <Link to="/" className="nw-icon-btn" title="View public site">
           <ExternalLink size={17} />
         </Link>
-        <button type="button" className="nw-icon-btn" aria-label="Notifications">
-          <Bell size={17} />
-          <span className="dot" />
-        </button>
+        <AdminNotifications isAdmin={user?.role === 'ADMIN'} />
         <Link to="/profile" className="nw-user">
           <img src={avatar} alt={user?.name || 'User'} />
           <span>{user?.name || 'Admin'}</span>

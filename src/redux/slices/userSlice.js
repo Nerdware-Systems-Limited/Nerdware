@@ -24,7 +24,12 @@ export const fetchAllUsers = createAsyncThunk(
   'users/fetchAll',
   async (params = {}, { rejectWithValue }) => {
     try {
-      const searchParams = new URLSearchParams(params).toString();
+      // Drop undefined/empty entries — URLSearchParams would otherwise
+      // stringify `undefined` as the literal string "undefined".
+      const clean = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+      );
+      const searchParams = new URLSearchParams(clean).toString();
       const url = searchParams ? `users?${searchParams}` : 'users';
       const res = await authApi().get(url).json();
       return res.data || res;
@@ -94,7 +99,7 @@ const usersSlice = createSlice({
   initialState: {
     users: [],
     selectedUser: null,
-    pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    pagination: { total: 0, page: 1, limit: 10, pages: 0 },
 
     status: 'idle',       // fetchAll: idle | loading | succeeded | failed
     error: null,

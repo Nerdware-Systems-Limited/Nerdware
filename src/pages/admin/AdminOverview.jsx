@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { FileText, Briefcase, Users, MessageSquare, Plus } from 'lucide-react';
@@ -8,36 +8,63 @@ import StatCard from '../../components/admin/StatCard';
 import StatusBadge from '../../components/admin/StatusBadge';
 
 import { fetchBlogs, selectAllBlogs, selectBlogsStatus } from '../../redux/slices/Blogslice';
-import { fetchAllPortfolios, selectAllPortfolios } from '../../redux/slices/portfolioSlice';
-import { fetchAllUsers, selectAllUsers } from '../../redux/slices/userSlice';
-import { fetchMessages, selectMessages } from '../../redux/slices/miscSlice';
 import { selectUser } from '../../redux/slices/authslice';
+import api from '../../redux/api/kyClient';
 
 const formatDate = (s) =>
   s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+
+/** Reads just `pagination.total` from a list endpoint without touching any
+ *  shared redux slice — the site-wide dashboard cards need true totals, not
+ *  whatever page size another admin page last fetched into shared state. */
+const fetchTotal = async (authedApi, path, searchParams) => {
+  try {
+    const res = await authedApi.get(path, { searchParams: { limit: 1, ...searchParams } }).json();
+    return res.data?.pagination?.total ?? 0;
+  } catch {
+    return 0;
+  }
+};
 
 const AdminOverview = () => {
   const dispatch = useDispatch();
   const user      = useSelector(selectUser);
   const blogs     = useSelector(selectAllBlogs);
   const blogStatus= useSelector(selectBlogsStatus);
-  const portfolios= useSelector(selectAllPortfolios);
-  const users     = useSelector(selectAllUsers);
-  const messages  = useSelector(selectMessages);
 
   const isAdmin = user?.role === 'ADMIN';
 
-  useEffect(() => {
-    dispatch(fetchBlogs());
-    dispatch(fetchAllPortfolios());
-    if (isAdmin) {
-      dispatch(fetchAllUsers());
-      dispatch(fetchMessages());
-    }
-  }, [dispatch, isAdmin]);
+  const [counts, setCounts] = useState({ published: 0, drafts: 0, portfolios: 0, users: 0, unreadMessages: 0 });
 
-  const published = blogs.filter((b) => b.status === 'PUBLISHED').length;
-  const drafts    = blogs.filter((b) => b.status === 'DRAFT').length;
+  // Recent-activity feed and the 7-day chart need a reasonable sample of the
+  // newest posts across all statuses — a dedicated fetch, decoupled from
+  // AdminBlogList's own filtered/paginated view of the same slice.
+  useEffect(() => {
+    dispatch(fetchBlogs({ limit: 20 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = localStorage.getItem('token') || '';
+    const authedApi = api.extend({ headers: { Authorization: `Bearer ${token}` } });
+
+    (async () => {
+      const requests = [
+        fetchTotal(authedApi, 'blogs', { status: 'PUBLISHED' }),
+        fetchTotal(authedApi, 'blogs', { status: 'DRAFT' }),
+        fetchTotal(authedApi, 'portfolios'),
+      ];
+      if (isAdmin) {
+        requests.push(fetchTotal(authedApi, 'users'));
+        requests.push(fetchTotal(authedApi, 'contact', { status: 'UNREAD' }));
+      }
+      const [published, drafts, portfolios, users, unreadMessages] = await Promise.all(requests);
+      if (cancelled) return;
+      setCounts({ published, drafts, portfolios, users: users ?? 0, unreadMessages: unreadMessages ?? 0 });
+    })();
+
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   // Last 7 days "posts created" mini chart
   const bars = useMemo(() => {
@@ -74,14 +101,14 @@ const AdminOverview = () => {
       />
 
       <div className="nw-stats">
-        <StatCard label="Published posts" value={published} delta="+12% this month" icon={FileText} />
-        <StatCard label="Drafts"          value={drafts}    delta={`${drafts} pending`} trend="up" icon={FileText} />
-        <StatCard label="Portfolio items" value={portfolios.length} delta="+3 new" icon={Briefcase} />
+        <StatCard label="Published posts" value={counts.published} icon={FileText} />
+        <StatCard label="Drafts"          value={counts.drafts}    delta={counts.drafts ? `${counts.drafts} pending` : undefined} trend="up" icon={FileText} />
+        <StatCard label="Portfolio items" value={counts.portfolios} icon={Briefcase} />
         {isAdmin && (
-          <StatCard label="Total users" value={users.length} delta="+8 this week" icon={Users} />
+          <StatCard label="Total users" value={counts.users} icon={Users} />
         )}
         {isAdmin && (
-          <StatCard label="Unread messages" value={messages.filter((m) => m.status === 'UNREAD').length} delta="needs review" trend="down" icon={MessageSquare} />
+          <StatCard label="Unread messages" value={counts.unreadMessages} delta={counts.unreadMessages ? 'needs review' : undefined} trend="down" icon={MessageSquare} />
         )}
       </div>
 

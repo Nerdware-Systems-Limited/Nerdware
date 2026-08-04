@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Search, Pencil, Trash2, Briefcase, ExternalLink } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Briefcase, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import PageHeader from '../../components/admin/PageHeader';
 import Modal from '../../components/admin/Modal';
@@ -8,7 +8,7 @@ import EmptyState from '../../components/admin/EmptyState';
 
 import {
   fetchAllPortfolios, createPortfolio, updatePortfolio, deletePortfolio,
-  selectAllPortfolios, selectPortfoliosStatus,
+  selectAllPortfolios, selectPortfoliosStatus, selectPortfoliosPagination,
 } from '../../redux/slices/portfolioSlice';
 
 const EMPTY = {
@@ -17,18 +17,25 @@ const EMPTY = {
   technologies: '', featured: false,
 };
 
+const LIMIT = 9;
+
 const AdminPortfolio = () => {
   const dispatch = useDispatch();
   const items    = useSelector(selectAllPortfolios);
   const status   = useSelector(selectPortfoliosStatus);
+  const pagination = useSelector(selectPortfoliosPagination);
 
   const [search, setSearch] = useState('');
+  const [page, setPage]     = useState(1);
   const [modal, setModal]   = useState(null);
   const [form, setForm]     = useState(EMPTY);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => { dispatch(fetchAllPortfolios()); }, [dispatch]);
+  useEffect(() => { dispatch(fetchAllPortfolios({ page, limit: LIMIT })); }, [dispatch, page]);
 
+  /* The backend doesn't support free-text search on this endpoint, so this
+     only filters within the current page's results — pagination itself is
+     still driven server-side. */
   const filtered = useMemo(() => items.filter((p) => {
     if (!search) return true;
     const s = search.toLowerCase();
@@ -63,7 +70,7 @@ const AdminPortfolio = () => {
     else dispatch(updatePortfolio({ id: modal.data.id, ...payload })).then(() => setModal(null));
   };
 
-  const isLoading = status === 'loading' && !items.length;
+  const isLoading = status === 'loading';
 
   return (
     <>
@@ -160,6 +167,32 @@ const AdminPortfolio = () => {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {!isLoading && pagination.pages > 1 && (
+        <div className="nw-pagination" style={{ border: 'none', marginTop: 16, padding: '14px 0 0' }}>
+          <span className="nw-pagination__status">
+            Page {pagination.page} of {pagination.pages} · {pagination.total} projects
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className="nw-btn nw-btn--ghost nw-btn--sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={pagination.page <= 1}
+            >
+              <ChevronLeft size={15} /> Prev
+            </button>
+            <button
+              type="button"
+              className="nw-btn nw-btn--ghost nw-btn--sm"
+              onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+              disabled={pagination.page >= pagination.pages}
+            >
+              Next <ChevronRight size={15} />
+            </button>
+          </div>
         </div>
       )}
 

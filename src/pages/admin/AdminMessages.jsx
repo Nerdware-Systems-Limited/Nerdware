@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Search, Mail, MailOpen, Trash2, Reply, Send,
   Archive, Inbox, Star, StarOff, X, AlertCircle,
-  Clock, CheckCheck, MessageSquare,
+  Clock, CheckCheck, MessageSquare, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 import PageHeader from '../../components/admin/PageHeader';
@@ -16,10 +16,13 @@ import {
   updateMessageStatus,
   selectMessages,
   selectMessagesStatus,
+  selectMessagesPagination,
   selectMessageActionStatus,
   selectMessageActionError,
   clearMessageActionState,
 } from '../../redux/slices/miscSlice';
+
+const LIMIT = 20;
 
 /* miscSlice exposes no selectMessagesError — read the raw state directly */
 const selectMessagesError = (state) => state.misc.messagesError ?? null;
@@ -40,9 +43,6 @@ const formatDate = (iso) => {
 };
 
 /* miscSlice stores a `status` field per message: 'UNREAD' | 'READ' | 'ARCHIVED' */
-const isUnread   = (m) => m.status === 'UNREAD';
-const isRead     = (m) => m.status === 'READ';
-const isArchived = (m) => m.status === 'ARCHIVED';
 /* starred is a client-side concept — the slice doesn't have it,
    so we derive it from a local Set and patch via updateMessageStatus if your
    backend supports a 'STARRED' status; otherwise it's purely local.         */
@@ -67,11 +67,13 @@ const AdminMessages = () => {
   const messages  = useSelector(selectMessages);
   const status    = useSelector(selectMessagesStatus);
   const error     = useSelector(selectMessagesError);
+  const pagination = useSelector(selectMessagesPagination);
   const actStatus = useSelector(selectMessageActionStatus);
   const actError  = useSelector(selectMessageActionError);
 
   const [filter, setFilter]     = useState('ALL');
   const [search, setSearch]     = useState('');
+  const [page, setPage]         = useState(1);
   const [selected, setSelected] = useState(null);
   const [modal, setModal]       = useState(null);   // 'delete'
   const [reply, setReply]       = useState('');
@@ -82,8 +84,12 @@ const AdminMessages = () => {
     catch { return new Set(); }
   });
 
-  /* ── fetch ──────────────────────────────────────────────────────────── */
-  useEffect(() => { dispatch(fetchMessages()); }, [dispatch]);
+  useEffect(() => { setPage(1); }, [filter]);
+
+  /* ── fetch (status filter + pagination are server-side) ──────────────── */
+  useEffect(() => {
+    dispatch(fetchMessages({ page, limit: LIMIT, status: filter !== 'ALL' ? filter : undefined }));
+  }, [dispatch, page, filter]);
 
   /* ── close modals after successful action ───────────────────────────── */
   useEffect(() => {
@@ -91,31 +97,20 @@ const AdminMessages = () => {
       setModal(null);
       setReply('');
       dispatch(clearMessageActionState());
-      dispatch(fetchMessages());
+      dispatch(fetchMessages({ page, limit: LIMIT, status: filter !== 'ALL' ? filter : undefined }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actStatus, dispatch]);
 
-  /* ── derived counts ─────────────────────────────────────────────────── */
-  const counts = useMemo(() => ({
-    ALL:      messages.length,
-    UNREAD:   messages.filter(isUnread).length,
-    READ:     messages.filter(isRead).length,
-    ARCHIVED: messages.filter(isArchived).length,
-  }), [messages]);
-
-  /* ── filtered list ──────────────────────────────────────────────────── */
+  /* ── filtered list — text search stays client-side, scoped to the
+     current page, since the endpoint has no free-text search param ────── */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return [...messages]
-      .filter((m) => {
-        if (filter !== 'ALL' && m.status !== filter) return false;
-        if (!q) return true;
-        return [m.name, m.email, m.subject, m.message]
-          .filter(Boolean)
-          .some((v) => v.toLowerCase().includes(q));
-      })
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [messages, filter, search]);
+    if (!q) return messages;
+    return messages.filter((m) =>
+      [m.name, m.email, m.subject, m.message].filter(Boolean).some((v) => v.toLowerCase().includes(q))
+    );
+  }, [messages, search]);
 
   /* ── handlers ───────────────────────────────────────────────────────── */
   const openMessage = (m) => {
@@ -156,7 +151,7 @@ const AdminMessages = () => {
     setReply('');
   };
 
-  const isLoading = status === 'loading' && !messages.length;
+  const isLoading = status === 'loading';
 
   /* ============================== render ================================ */
   return (
@@ -374,7 +369,7 @@ const AdminMessages = () => {
         title="Messages"
         subtitle="Manage contact form submissions and inquiries."
         actions={
-          counts.UNREAD > 0 && (
+          filter === 'UNREAD' && pagination.total > 0 && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '4px 12px', borderRadius: 999,
@@ -382,7 +377,7 @@ const AdminMessages = () => {
               color: 'var(--nw-accent, #EE4F27)',
               fontSize: 13, fontWeight: 600,
             }}>
-              <Mail size={14} /> {counts.UNREAD} unread
+              <Mail size={14} /> {pagination.total} unread
             </span>
           )
         }
@@ -414,10 +409,12 @@ const AdminMessages = () => {
               >
                 <Icon size={13} />
                 {label}
-                <span style={{
-                  padding: '0 6px', borderRadius: 999,
-                  background: 'rgba(0,0,0,0.25)', fontSize: 10,
-                }}>{counts[id]}</span>
+                {filter === id && (
+                  <span style={{
+                    padding: '0 6px', borderRadius: 999,
+                    background: 'rgba(0,0,0,0.25)', fontSize: 10,
+                  }}>{pagination.total}</span>
+                )}
               </button>
             ))}
           </div>
@@ -490,6 +487,37 @@ const AdminMessages = () => {
                 </button>
               );
             })
+          )}
+
+          {!isLoading && !error && pagination.pages > 1 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 8, padding: '10px 14px',
+              borderTop: '1px solid var(--nw-border, rgba(255,255,255,0.08))',
+              fontSize: 12, color: 'var(--nw-text-muted)',
+            }}>
+              <span>Page {pagination.page}/{pagination.pages}</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  type="button"
+                  className="nw-icon-btn"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={pagination.page <= 1}
+                  title="Previous page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="nw-icon-btn"
+                  onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                  disabled={pagination.page >= pagination.pages}
+                  title="Next page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
           )}
         </aside>
 

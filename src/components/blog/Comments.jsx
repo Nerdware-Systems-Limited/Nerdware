@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { useAuthModal } from '../../context/AuthModalContext';
 import { selectUser, selectIsAuthenticated } from '../../redux/slices/authslice';
 import {
   fetchComments,
@@ -687,6 +687,7 @@ const Comments = ({ blogId }) => {
   const dispatch       = useDispatch();
   const currentUser    = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const { openLogin }  = useAuthModal();
 
   const comments   = useSelector(selectCommentsByBlog(blogId));
   const pagination = useSelector(selectCommentsPagination(blogId));
@@ -774,9 +775,14 @@ const Comments = ({ blogId }) => {
             <p style={{ color: 'var(--text-muted)', marginBottom: 10 }}>
               Join the conversation
             </p>
-            <Link to="/login" className="cs-btn-primary" style={{ display: 'inline-block', textDecoration: 'none', borderRadius: 8, padding: '8px 20px', fontSize: '0.875rem', fontWeight: 600 }}>
+            <button
+              type="button"
+              onClick={openLogin}
+              className="cs-btn-primary"
+              style={{ display: 'inline-block', border: 'none', textDecoration: 'none', borderRadius: 8, padding: '8px 20px', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
+            >
               Log in to comment
-            </Link>
+            </button>
           </div>
         )}
 

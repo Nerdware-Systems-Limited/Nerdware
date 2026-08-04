@@ -12,7 +12,7 @@ import {
 } from '../redux/slices/authslice';
 
 /* ── data slices for live stats ── */
-import { fetchBlogs,       selectAllBlogs,       selectBlogsStatus   } from '../redux/slices/Blogslice';
+import { fetchBlogs,       selectAllBlogs,       selectBlogsStatus,  selectBlogsPagination } from '../redux/slices/Blogslice';
 import { fetchAllPortfolios, selectAllPortfolios, selectPortfoliosStatus } from '../redux/slices/portfolioSlice';
 import { fetchAllApplications, selectAllApplications, selectApplicationsStatus } from '../redux/slices/applicationsSlice';
 import { fetchMessages,    selectMessages,        selectMessagesStatus } from '../redux/slices/miscSlice';
@@ -29,6 +29,11 @@ const ROLE_META = {
   WRITER: { label: 'Writer', color: '#34d399', glow: 'rgba(52,211,153,0.35)',  symbol: '◉' },
   USER:   { label: 'User',   color: '#64748b', glow: 'rgba(100,116,139,0.25)', symbol: '○' },
 };
+
+const BLOG_STATUS_COLOR = { PUBLISHED: '#4ade80', DRAFT: '#fbbf24', ARCHIVED: '#94a3b8' };
+
+const formatBlogDate = (s) =>
+  s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 /* ─── SVG icon helpers ── */
 const Icon = ({ d, size = 16, ...p }) => (
@@ -112,6 +117,7 @@ export default function Profile() {
   /* ── data selectors for live stats ── */
   const blogs        = useSelector(selectAllBlogs);
   const blogsStatus  = useSelector(selectBlogsStatus);
+  const blogsPagination = useSelector(selectBlogsPagination);
   const portfolios   = useSelector(selectAllPortfolios);
   const portStatus   = useSelector(selectPortfoliosStatus);
   const applications = useSelector(selectAllApplications);
@@ -168,7 +174,9 @@ export default function Profile() {
     const pendingApps = applications.filter((a) => a.status === 'pending').length;
     const unreadMsgs  = messages.filter((m) => m.status === 'unread').length;
     return {
-      blogs:       blogs.length,
+      // pagination.total reflects the site-wide count; blogs.length is capped
+      // to whatever page size fetchBlogs() was called with.
+      blogs:       blogsPagination.total || blogs.length,
       portfolios:  portfolios.length,
       pendingApps,
       unreadMsgs,
@@ -176,7 +184,7 @@ export default function Profile() {
         ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
         : '—',
     };
-  }, [blogs, portfolios, applications, messages, user]);
+  }, [blogs, blogsPagination, portfolios, applications, messages, user]);
 
   /* ── handlers ── */
   const handleProfileChange = (e) => {
@@ -374,13 +382,32 @@ export default function Profile() {
                 <p className="p-empty">No blog posts yet.</p>
               ) : (
                 <div className="p-list">
-                  {blogs.slice(0, 5).map((b) => (
-                    <div key={b.id} className="p-list-item">
-                      <span className="p-list-dot" style={{ background: roleMeta.color }} />
-                      <span className="p-list-title">{b.title}</span>
-                      <span className="p-list-meta">{b.createdAt ? new Date(b.createdAt).toLocaleDateString() : ''}</span>
-                    </div>
-                  ))}
+                  {blogs.slice(0, 5).map((b) => {
+                    const href = b.status === 'PUBLISHED'
+                      ? `/blog/${b.slug}`
+                      : isAdmin ? `/admin/blog/edit/${b.slug}` : null;
+                    const Row = href ? Link : 'div';
+                    return (
+                      <Row key={b.id} {...(href ? { to: href } : {})} className="p-list-item p-list-item--link">
+                        <span
+                          className="p-list-thumb"
+                          style={b.coverImage ? { backgroundImage: `url(${b.coverImage})` } : undefined}
+                        >
+                          {!b.coverImage && (b.title?.[0]?.toUpperCase() || '?')}
+                        </span>
+                        <span className="p-list-body">
+                          <span className="p-list-title">{b.title}</span>
+                          <span className="p-list-submeta">
+                            {b.category && <span className="p-list-chip">{b.category}</span>}
+                            <span className="p-list-status" style={{ '--sc': BLOG_STATUS_COLOR[b.status] || '#94a3b8' }}>
+                              {b.status}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="p-list-meta">{formatBlogDate(b.publishedAt || b.createdAt)}</span>
+                      </Row>
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -838,8 +865,21 @@ export default function Profile() {
         }
         .p-list-item:last-child { border-bottom: none; }
         .p-list-item--skel { gap: 1rem; }
+        .p-list-item--link { text-decoration: none; border-radius: 8px; transition: background 0.15s; }
+        .p-list-item--link:hover { background: rgba(255,255,255,0.03); }
         .p-list-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-        .p-list-title { flex: 1; font-size: 0.875rem; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .p-list-thumb {
+          width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+          background-color: var(--bg-1); background-size: cover; background-position: center;
+          display: flex; align-items: center; justify-content: center;
+          color: var(--text-3); font-family: var(--font-head); font-weight: 700; font-size: 0.9rem;
+          border: 1px solid var(--border);
+        }
+        .p-list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+        .p-list-title { font-size: 0.875rem; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .p-list-submeta { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+        .p-list-chip { font-size: 0.68rem; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); }
+        .p-list-status { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sc, var(--text-3)); }
         .p-list-meta { font-size: 0.75rem; color: var(--text-3); flex-shrink: 0; }
         .p-empty { color: var(--text-3); font-size: 0.85rem; font-style: italic; margin: 0; }
 

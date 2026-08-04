@@ -47,9 +47,16 @@ export const unsubscribeNewsletter = createAsyncThunk(
 /** GET /api/newsletter/subscribers  (admin) */
 export const fetchSubscribers = createAsyncThunk(
   'misc/fetchSubscribers',
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const res = await authApi().get('newsletter/subscribers').json();
+      // Drop undefined/empty entries — URLSearchParams would otherwise
+      // stringify `undefined` as the literal string "undefined".
+      const clean = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+      );
+      const searchParams = new URLSearchParams(clean).toString();
+      const url = searchParams ? `newsletter/subscribers?${searchParams}` : 'newsletter/subscribers';
+      const res = await authApi().get(url).json();
       return res.data || res;
     } catch (err) {
       return rejectWithValue(await extractError(err));
@@ -79,7 +86,12 @@ export const fetchMessages = createAsyncThunk(
   'misc/fetchMessages',
   async (params = {}, { rejectWithValue }) => {
     try {
-      const searchParams = new URLSearchParams(params).toString();
+      // Drop undefined/empty entries — URLSearchParams would otherwise
+      // stringify `undefined` as the literal string "undefined".
+      const clean = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+      );
+      const searchParams = new URLSearchParams(clean).toString();
       const url = searchParams ? `contact?${searchParams}` : 'contact';
       const res = await authApi().get(url).json();
       return res.data || res;
@@ -112,6 +124,7 @@ const miscSlice = createSlice({
   initialState: {
     /* newsletter */
     subscribers: [],
+    subscribersPagination: { page: 1, limit: 20, total: 0, pages: 1 },
     subscribersStatus: 'idle',
     subscribersError: null,
     newsletterStatus: 'idle',   // subscribe / unsubscribe
@@ -119,6 +132,7 @@ const miscSlice = createSlice({
 
     /* contact */
     messages: [],
+    messagesPagination: { page: 1, limit: 10, total: 0, pages: 1 },
     messagesStatus: 'idle',
     messagesError: null,
     contactStatus: 'idle',      // public send
@@ -147,7 +161,11 @@ const miscSlice = createSlice({
     /* ── fetchSubscribers ─────────────────────────────────────────────────── */
     builder
       .addCase(fetchSubscribers.pending,   (state) => { state.subscribersStatus = 'loading';   state.subscribersError = null; })
-      .addCase(fetchSubscribers.fulfilled, (state, action) => { state.subscribersStatus = 'succeeded'; state.subscribers = action.payload.subscribers || action.payload; })
+      .addCase(fetchSubscribers.fulfilled, (state, action) => {
+        state.subscribersStatus = 'succeeded';
+        state.subscribers = action.payload.subscribers || action.payload;
+        if (action.payload.pagination) state.subscribersPagination = action.payload.pagination;
+      })
       .addCase(fetchSubscribers.rejected,  (state, action) => { state.subscribersStatus = 'failed'; state.subscribersError = action.payload; });
 
     /* ── sendContactMessage ───────────────────────────────────────────────── */
@@ -159,7 +177,11 @@ const miscSlice = createSlice({
     /* ── fetchMessages ────────────────────────────────────────────────────── */
     builder
       .addCase(fetchMessages.pending,   (state) => { state.messagesStatus = 'loading';   state.messagesError = null; })
-      .addCase(fetchMessages.fulfilled, (state, action) => { state.messagesStatus = 'succeeded'; state.messages = action.payload.messages || action.payload; })
+      .addCase(fetchMessages.fulfilled, (state, action) => {
+        state.messagesStatus = 'succeeded';
+        state.messages = action.payload.messages || action.payload;
+        if (action.payload.pagination) state.messagesPagination = action.payload.pagination;
+      })
       .addCase(fetchMessages.rejected,  (state, action) => { state.messagesStatus = 'failed'; state.messagesError = action.payload; });
 
     /* ── updateMessageStatus ──────────────────────────────────────────────── */
@@ -178,11 +200,13 @@ export const { clearNewsletterState, clearContactState, clearMessageActionState 
 
 /* ─── Selectors ──────────────────────────────────────────────────────────── */
 export const selectSubscribers           = (state) => state.misc.subscribers;
+export const selectSubscribersPagination = (state) => state.misc.subscribersPagination;
 export const selectSubscribersStatus     = (state) => state.misc.subscribersStatus;
 export const selectNewsletterStatus      = (state) => state.misc.newsletterStatus;
 export const selectNewsletterError       = (state) => state.misc.newsletterError;
 
 export const selectMessages              = (state) => state.misc.messages;
+export const selectMessagesPagination    = (state) => state.misc.messagesPagination;
 export const selectMessagesStatus        = (state) => state.misc.messagesStatus;
 export const selectContactStatus         = (state) => state.misc.contactStatus;
 export const selectContactError          = (state) => state.misc.contactError;

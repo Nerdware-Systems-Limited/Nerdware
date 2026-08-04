@@ -253,7 +253,7 @@ const AdminApplications = () => {
         )}
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination.pages > 1 && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 16px',
@@ -261,7 +261,7 @@ const AdminApplications = () => {
             fontSize: 13, color: 'var(--nw-text-muted)',
           }}>
             <span>
-              Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+              Page {pagination.page} of {pagination.pages} · {pagination.total} total
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button
@@ -273,8 +273,8 @@ const AdminApplications = () => {
               </button>
               <button
                 className="nw-btn nw-btn--ghost nw-btn--sm"
-                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                disabled={pagination.page >= pagination.pages}
               >
                 Next <ChevronRight size={15} />
               </button>

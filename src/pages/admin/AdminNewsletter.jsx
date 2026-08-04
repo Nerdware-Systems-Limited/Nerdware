@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Search, Mail, Users, UserMinus, BarChart2, Download } from 'lucide-react';
+import { Search, Mail, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import PageHeader from '../../components/admin/PageHeader';
 import StatusBadge from '../../components/admin/StatusBadge';
@@ -8,10 +8,14 @@ import EmptyState from '../../components/admin/EmptyState';
 
 import {
   fetchSubscribers,
-  selectSubscribers, selectSubscribersStatus,
+  selectSubscribers, selectSubscribersStatus, selectSubscribersPagination,
 } from '../../redux/slices/miscSlice';
 
 const STATUS_TABS = ['ALL', 'ACTIVE', 'UNSUBSCRIBED'];
+const LIMIT = 20;
+/* Maps a tab to the backend's `active` query param — the endpoint only
+   supports this boolean filter, so text search stays client-side below. */
+const TAB_ACTIVE_PARAM = { ALL: undefined, ACTIVE: 'true', UNSUBSCRIBED: 'false' };
 
 const formatDate = (s) =>
   s
@@ -44,35 +48,25 @@ const AdminNewsletter = () => {
   const dispatch     = useDispatch();
   const subscribers  = useSelector(selectSubscribers);
   const status       = useSelector(selectSubscribersStatus);
+  const pagination   = useSelector(selectSubscribersPagination);
 
   const [tab, setTab]       = useState('ALL');
   const [search, setSearch] = useState('');
+  const [page, setPage]     = useState(1);
 
-  useEffect(() => { dispatch(fetchSubscribers()); }, [dispatch]);
+  useEffect(() => { setPage(1); }, [tab]);
 
-  /* ── Derived counts ──────────────────────────────────────────────────── */
-  const active       = useMemo(() => subscribers.filter((s) => s.status !== 'UNSUBSCRIBED' && s.isActive !== false), [subscribers]);
-  const unsubscribed = useMemo(() => subscribers.filter((s) => s.status === 'UNSUBSCRIBED' || s.isActive === false), [subscribers]);
+  useEffect(() => {
+    dispatch(fetchSubscribers({ page, limit: LIMIT, active: TAB_ACTIVE_PARAM[tab] }));
+  }, [dispatch, page, tab]);
 
-  /* ── Growth: last 7 days sign-ups ────────────────────────────────────── */
-  const recentCount = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return subscribers.filter((s) => new Date(s.createdAt || 0).getTime() >= cutoff).length;
-  }, [subscribers]);
-
-  /* ── Filtered list ───────────────────────────────────────────────────── */
+  /* ── Filtered list — text search stays client-side, scoped to the
+     current page, since the endpoint has no free-text search param ────── */
   const filtered = useMemo(() => {
-    return subscribers.filter((s) => {
-      const isActive = s.status !== 'UNSUBSCRIBED' && s.isActive !== false;
-      if (tab === 'ACTIVE'       && !isActive)  return false;
-      if (tab === 'UNSUBSCRIBED' && isActive)   return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return [s.email, s.name].some((v) => v?.toLowerCase().includes(q));
-      }
-      return true;
-    });
-  }, [subscribers, tab, search]);
+    if (!search) return subscribers;
+    const q = search.toLowerCase();
+    return subscribers.filter((s) => [s.email, s.name].some((v) => v?.toLowerCase().includes(q)));
+  }, [subscribers, search]);
 
   /* ── CSV export ──────────────────────────────────────────────────────── */
   const exportCSV = () => {
@@ -94,7 +88,7 @@ const AdminNewsletter = () => {
     URL.revokeObjectURL(url);
   };
 
-  const isLoading = status === 'loading' && !subscribers.length;
+  const isLoading = status === 'loading';
 
   return (
     <>
@@ -112,31 +106,32 @@ const AdminNewsletter = () => {
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <MiniStat label="Total subscribers"  value={subscribers.length} icon={Users}     accent />
-        <MiniStat label="Active"             value={active.length}      icon={Mail}       />
-        <MiniStat label="Unsubscribed"       value={unsubscribed.length} icon={UserMinus} />
-        <MiniStat label="Last 7 days"        value={`+${recentCount}`}  icon={BarChart2}  />
+        <MiniStat
+          label={tab === 'ALL' ? 'Total subscribers' : tab === 'ACTIVE' ? 'Active subscribers' : 'Unsubscribed'}
+          value={pagination.total}
+          icon={Mail}
+          accent
+        />
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        {STATUS_TABS.map((t) => {
-          const count = t === 'ALL' ? subscribers.length : t === 'ACTIVE' ? active.length : unsubscribed.length;
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`nw-btn nw-btn--sm ${tab === t ? 'nw-btn--primary' : 'nw-btn--ghost'}`}
-            >
-              {t.charAt(0) + t.slice(1).toLowerCase()}
+        {STATUS_TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`nw-btn nw-btn--sm ${tab === t ? 'nw-btn--primary' : 'nw-btn--ghost'}`}
+          >
+            {t.charAt(0) + t.slice(1).toLowerCase()}
+            {tab === t && (
               <span style={{
                 padding: '0 7px', borderRadius: 999,
                 background: 'rgba(0,0,0,0.25)', fontSize: 11,
-              }}>{count}</span>
-            </button>
-          );
-        })}
+              }}>{pagination.total}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="nw-table-wrap">
@@ -170,6 +165,7 @@ const AdminNewsletter = () => {
             }
           />
         ) : (
+          <>
           <table className="nw-table">
             <thead>
               <tr>
@@ -199,6 +195,33 @@ const AdminNewsletter = () => {
               })}
             </tbody>
           </table>
+
+          {pagination.pages > 1 && (
+            <div className="nw-pagination">
+              <span className="nw-pagination__status">
+                Page {pagination.page} of {pagination.pages} · {pagination.total} subscribers
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  type="button"
+                  className="nw-btn nw-btn--ghost nw-btn--sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={pagination.page <= 1}
+                >
+                  <ChevronLeft size={15} /> Prev
+                </button>
+                <button
+                  type="button"
+                  className="nw-btn nw-btn--ghost nw-btn--sm"
+                  onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                  disabled={pagination.page >= pagination.pages}
+                >
+                  Next <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </>

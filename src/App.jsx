@@ -3,9 +3,11 @@ import { Outlet } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { HelmetProvider } from 'react-helmet-async';
 import { store } from './redux/store';
+import { AuthModalProvider } from './context/AuthModalContext';
 
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
+import AuthModal from './components/common/AuthModal';
 
 // ── Public pages (lazy-loaded — each becomes its own chunk) ──────────────────
 const Home           = lazy(() => import('./pages/Home'));
@@ -16,8 +18,6 @@ const Blog           = lazy(() => import('./pages/Blog'));
 const BlogDetail     = lazy(() => import('./pages/BlogDetail'));
 const Contact        = lazy(() => import('./pages/Contact'));
 const Error404       = lazy(() => import('./pages/Error404'));
-const Login          = lazy(() => import('./pages/Login'));
-const Register       = lazy(() => import('./pages/Register'));
 const ChangePassword = lazy(() => import('./pages/Changepassword'));
 const Profile        = lazy(() => import('./pages/Profile'));
 const OAuthCallback   = lazy(() => import('./pages/OAuthCallback'));
@@ -35,17 +35,23 @@ const AdminNewsletter   = lazy(() => import('./pages/admin/AdminNewsletter'));
 const AdminTestimonial  = lazy(() => import('./pages/admin/AdminTestimonial'));
 
 // ── Public layout (Header + Outlet + Footer) ──────────────────────────────────
+// /login and /register don't get their own page shell — AuthModalProvider watches
+// the route and pops the sign-in/sign-up modal on top of whatever renders beneath,
+// 9GAG-style. The header and footer are still mounted but sit dimmed behind it.
 const Layout = () => (
   <Provider store={store}>
     <HelmetProvider>
-      <div className="app">
-        <Header />
-        {/* null fallback avoids a server/client <div> mismatch during hydration */}
-        <Suspense fallback={null}>
-          <Outlet />
-        </Suspense>
-        <Footer />
-      </div>
+      <AuthModalProvider>
+        <div className="app">
+          <Header />
+          {/* null fallback avoids a server/client <div> mismatch during hydration */}
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
+          <Footer />
+          <AuthModal />
+        </div>
+      </AuthModalProvider>
     </HelmetProvider>
   </Provider>
 );
@@ -71,8 +77,10 @@ export const routes = [
     errorElement: <Error404 />,
     children: [
       { index: true,             element: <Home /> },
-      { path: 'login',           element: <Login /> },
-      { path: 'register',        element: <Register /> },
+      // Rendered content behind the modal — AuthModalProvider detects these paths
+      // and opens the sign-in / sign-up modal over the home page.
+      { path: 'login',           element: <Home /> },
+      { path: 'register',        element: <Home /> },
       { path: 'change-password', element: <ChangePassword /> },
       { path: 'profile',         element: <Profile /> },
       { path: 'about',           element: <About /> },

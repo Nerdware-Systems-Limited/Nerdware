@@ -36,7 +36,12 @@ export const fetchAllApplications = createAsyncThunk(
   'applications/fetchAll',
   async (params = {}, { rejectWithValue }) => {
     try {
-      const searchParams = new URLSearchParams(params).toString();
+      // Drop undefined/empty entries — URLSearchParams would otherwise
+      // stringify `undefined` as the literal string "undefined".
+      const clean = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+      );
+      const searchParams = new URLSearchParams(clean).toString();
       const url = searchParams ? `applications?${searchParams}` : 'applications';
       const res = await authApi().get(url).json();
       return res.data || res;
@@ -95,7 +100,7 @@ const applicationsSlice = createSlice({
   initialState: {
     applications: [],
     selectedApplication: null,
-    pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    pagination: { total: 0, page: 1, limit: 10, pages: 0 },
 
     status: 'idle',
     error: null,

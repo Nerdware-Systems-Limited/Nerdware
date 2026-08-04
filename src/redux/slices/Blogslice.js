@@ -21,16 +21,22 @@ const extractError = async (err) => {
 /*  PUBLIC THUNKS                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-/** GET /api/blogs */
+/** GET /api/blogs
+ *  Sent with the auth header (when a token exists) so ADMIN/EDITOR callers —
+ *  e.g. the admin blog list — can filter by `status` and see DRAFT/ARCHIVED
+ *  posts; the backend's optionalAuth middleware ignores a missing/invalid
+ *  token on this public route, so anonymous callers are unaffected.
+ */
 export const fetchBlogs = createAsyncThunk(
   'blogs/fetchBlogs',
-  async ({ page = 1, limit = 9, category, search } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 9, category, search, status } = {}, { rejectWithValue }) => {
     try {
       const searchParams = { page, limit };
       if (category && category !== 'All') searchParams.category = category;
       if (search) searchParams.search = search;
+      if (status && status !== 'ALL') searchParams.status = status;
 
-      const res = await api.get('blogs', { searchParams }).json();
+      const res = await authApi().get('blogs', { searchParams }).json();
       const blogs = res.data?.blogs || res.blogs || (Array.isArray(res) ? res : null);
       if (!blogs) return rejectWithValue('Invalid data structure from API');
 

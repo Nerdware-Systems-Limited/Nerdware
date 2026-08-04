@@ -1,27 +1,38 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Search, Pencil, Trash2, MessageSquare, Star } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, MessageSquare, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import PageHeader    from '../../components/admin/PageHeader';
 import Modal         from '../../components/admin/Modal';
 import EmptyState    from '../../components/admin/EmptyState';
+import StatusBadge   from '../../components/admin/StatusBadge';
 
 import {
   fetchTestimonials, createTestimonial, updateTestimonial, deleteTestimonial,
-  selectAllTestimonials, selectTestimonialsStatus,
+  selectAllTestimonials, selectTestimonialsStatus, selectTestimonialsPagination,
   selectMutationStatus, clearMutationState,
 } from '../../redux/slices/testimonialSlice';
 
+const LIMIT = 20;
+const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED'];
+
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
+// Field names here match the backend (Testimonial model): name, feedback,
+// image — NOT author/content/avatarUrl. Getting these wrong means the API's
+// express-validator rejects create (name/feedback required) and silently
+// ignores those three fields on update.
 const EMPTY = {
-  author:     '',
-  role:       '',
-  company:    '',
-  content:    '',
-  rating:     5,
-  avatarUrl:  '',
-  featured:   false,
+  name:     '',
+  role:     '',
+  company:  '',
+  feedback: '',
+  rating:   5,
+  image:    '',
+  featured: false,
+  // POST /api/testimonials always lands PENDING regardless of this value —
+  // submit() follows up with a PATCH-equivalent update when it isn't PENDING.
+  status:   'APPROVED',
 };
 
 const MAX_RATING = 5;
@@ -103,15 +114,22 @@ const AdminTestimonial = () => {
   const dispatch       = useDispatch();
   const items          = useSelector(selectAllTestimonials);
   const status         = useSelector(selectTestimonialsStatus);
+  const pagination     = useSelector(selectTestimonialsPagination);
   const mutationStatus = useSelector(selectMutationStatus);
 
+  const [tab,    setTab]    = useState('ALL');
   const [search, setSearch] = useState('');
+  const [page,   setPage]   = useState(1);
   const [modal,  setModal]  = useState(null);   // null | { type: 'create'|'edit'|'delete', data? }
   const [form,   setForm]   = useState(EMPTY);
   const [errors, setErrors] = useState({});
 
-  /* Initial fetch */
-  useEffect(() => { dispatch(fetchTestimonials()); }, [dispatch]);
+  useEffect(() => { setPage(1); }, [tab]);
+
+  /* Fetch on mount / page / tab change */
+  useEffect(() => {
+    dispatch(fetchTestimonials({ page, limit: LIMIT, status: tab }));
+  }, [dispatch, page, tab]);
 
   /* Close modal automatically after a successful mutation */
   useEffect(() => {
@@ -121,24 +139,27 @@ const AdminTestimonial = () => {
     }
   }, [mutationStatus, dispatch]);
 
-  /* Filtered list */
+  /* Filtered list — the backend doesn't support free-text search on this
+     endpoint, so this only filters within the current page; pagination
+     itself is still driven server-side. */
   const filtered = useMemo(() => items.filter((t) => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return [t.author, t.role, t.company, t.content].some((v) => v?.toLowerCase().includes(s));
+    return [t.name, t.role, t.company, t.feedback].some((v) => v?.toLowerCase().includes(s));
   }), [items, search]);
 
   /* Modal openers */
   const openCreate = () => { setForm(EMPTY); setErrors({}); setModal({ type: 'create' }); };
   const openEdit   = (t) => {
     setForm({
-      author:    t.author    || '',
-      role:      t.role      || '',
-      company:   t.company   || '',
-      content:   t.content   || '',
-      rating:    t.rating    ?? 5,
-      avatarUrl: t.avatarUrl || '',
-      featured:  !!t.featured,
+      name:     t.name     || '',
+      role:     t.role     || '',
+      company:  t.company  || '',
+      feedback: t.feedback || '',
+      rating:   t.rating   ?? 5,
+      image:    t.image    || '',
+      featured: !!t.featured,
+      status:   t.status   || 'APPROVED',
     });
     setErrors({});
     setModal({ type: 'edit', data: t });
@@ -154,21 +175,37 @@ const AdminTestimonial = () => {
   /* Submit (create / update) */
   const submit = () => {
     const e = {};
-    if (!form.author.trim())  e.author  = 'Author name is required';
-    if (!form.content.trim()) e.content = 'Testimonial content is required';
+    if (!form.name.trim())     e.name     = 'Author name is required';
+    if (!form.feedback.trim()) e.feedback = 'Testimonial content is required';
     setErrors(e);
     if (Object.keys(e).length) return;
 
-    const payload = { ...form, rating: Number(form.rating) };
-    if (modal.type === 'create') {
-      dispatch(createTestimonial(payload));
-    } else {
-      dispatch(updateTestimonial({ id: modal.data.id, ...payload }));
+    const { status, ...rest } = form;
+    const payload = { ...rest, rating: Number(form.rating) };
+    // The API validates `image` as an optional URL, but express-validator's
+    // .optional() only skips an absent field — an empty string still fails
+    // isURL(), so drop it entirely rather than sending ''.
+    if (!payload.image) delete payload.image;
+
+    if (modal.type === 'edit') {
+      dispatch(updateTestimonial({ id: modal.data.id, ...payload, status }));
+      return;
     }
+
+    // POST /api/testimonials always creates as PENDING/unfeatured regardless
+    // of what's sent — if the admin picked a different status here, follow
+    // up with an update so "New testimonial" behaves as a single action
+    // instead of silently landing in the moderation queue.
+    dispatch(createTestimonial(payload)).then((action) => {
+      const created = action.payload;
+      if (created?.id && (status !== 'PENDING' || form.featured)) {
+        dispatch(updateTestimonial({ id: created.id, status, featured: form.featured }));
+      }
+    });
   };
 
   const isMutating = mutationStatus === 'loading';
-  const isLoading  = status === 'loading' && !items.length;
+  const isLoading  = status === 'loading';
 
   return (
     <>
@@ -181,6 +218,26 @@ const AdminTestimonial = () => {
           </button>
         }
       />
+
+      {/* Status tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {STATUS_TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`nw-btn nw-btn--sm ${tab === t ? 'nw-btn--primary' : 'nw-btn--ghost'}`}
+          >
+            {t.charAt(0) + t.slice(1).toLowerCase()}
+            {tab === t && (
+              <span style={{
+                padding: '0 7px', borderRadius: 999,
+                background: 'rgba(0,0,0,0.25)', fontSize: 11,
+              }}>{pagination.total}</span>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Search toolbar */}
       <div className="nw-table-wrap" style={{ marginBottom: 16 }}>
@@ -207,9 +264,9 @@ const AdminTestimonial = () => {
       ) : !filtered.length ? (
         <EmptyState
           icon={MessageSquare}
-          title={search ? 'No matching testimonials' : 'No testimonials yet'}
-          message={search ? 'Try a different search.' : 'Add your first client testimonial.'}
-          action={!search && (
+          title={search || tab !== 'ALL' ? 'No matching testimonials' : 'No testimonials yet'}
+          message={search || tab !== 'ALL' ? 'Try a different search or filter.' : 'Add your first client testimonial.'}
+          action={!search && tab === 'ALL' && (
             <button className="nw-btn nw-btn--primary" onClick={openCreate}>
               <Plus size={16} /> New testimonial
             </button>
@@ -224,14 +281,10 @@ const AdminTestimonial = () => {
             <article key={t.id} className="nw-card" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20 }}>
               {/* Quote body */}
               <div style={{ position: 'relative' }}>
-                {t.featured && (
-                  <span
-                    className="nw-badge nw-badge--brand"
-                    style={{ position: 'absolute', top: 0, right: 0 }}
-                  >
-                    Featured
-                  </span>
-                )}
+                <div style={{ display: 'flex', gap: 6, position: 'absolute', top: 0, right: 0 }}>
+                  {t.featured && <span className="nw-badge nw-badge--brand">Featured</span>}
+                  {t.status !== 'APPROVED' && <StatusBadge status={t.status} />}
+                </div>
                 <p style={{
                   margin: 0,
                   color: 'var(--nw-text-muted)',
@@ -242,7 +295,7 @@ const AdminTestimonial = () => {
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                 }}>
-                  "{t.content}"
+                  "{t.feedback}"
                 </p>
               </div>
 
@@ -251,9 +304,9 @@ const AdminTestimonial = () => {
 
               {/* Author row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>
-                <Avatar src={t.avatarUrl} name={t.author} />
+                <Avatar src={t.image} name={t.name} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{t.author}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{t.name}</div>
                   {(t.role || t.company) && (
                     <div style={{ color: 'var(--nw-text-muted)', fontSize: 12 }}>
                       {[t.role, t.company].filter(Boolean).join(' · ')}
@@ -276,10 +329,36 @@ const AdminTestimonial = () => {
         </div>
       )}
 
+      {!isLoading && pagination.pages > 1 && (
+        <div className="nw-pagination" style={{ border: 'none', marginTop: 16, padding: '14px 0 0' }}>
+          <span className="nw-pagination__status">
+            Page {pagination.page} of {pagination.pages} · {pagination.total} testimonials
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className="nw-btn nw-btn--ghost nw-btn--sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={pagination.page <= 1}
+            >
+              <ChevronLeft size={15} /> Prev
+            </button>
+            <button
+              type="button"
+              className="nw-btn nw-btn--ghost nw-btn--sm"
+              onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+              disabled={pagination.page >= pagination.pages}
+            >
+              Next <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Create / Edit modal ── */}
       {modal && (modal.type === 'create' || modal.type === 'edit') && (
         <Modal
-          title={modal.type === 'create' ? 'New testimonial' : `Edit: ${modal.data.author}`}
+          title={modal.type === 'create' ? 'New testimonial' : `Edit: ${modal.data.name}`}
           onClose={() => setModal(null)}
           maxWidth={640}
           footer={
@@ -303,8 +382,8 @@ const AdminTestimonial = () => {
           <div className="nw-grid-2">
             <div className="nw-field">
               <label className="nw-field__lbl">Author <span className="req">*</span></label>
-              <input className="nw-input" placeholder="Jane Smith" {...field('author')} />
-              {errors.author && <span className="nw-field__err">{errors.author}</span>}
+              <input className="nw-input" placeholder="Jane Smith" {...field('name')} />
+              {errors.name && <span className="nw-field__err">{errors.name}</span>}
             </div>
             <div className="nw-field">
               <label className="nw-field__lbl">Role / Title</label>
@@ -320,7 +399,7 @@ const AdminTestimonial = () => {
             </div>
             <div className="nw-field">
               <label className="nw-field__lbl">Avatar URL</label>
-              <input className="nw-input" placeholder="https://…" {...field('avatarUrl')} />
+              <input className="nw-input" placeholder="https://…" {...field('image')} />
             </div>
           </div>
 
@@ -331,15 +410,25 @@ const AdminTestimonial = () => {
               className="nw-textarea"
               rows={4}
               placeholder="What did they say about your work?"
-              {...field('content')}
+              {...field('feedback')}
             />
-            {errors.content && <span className="nw-field__err">{errors.content}</span>}
+            {errors.feedback && <span className="nw-field__err">{errors.feedback}</span>}
           </div>
 
-          {/* Rating */}
-          <div className="nw-field">
-            <label className="nw-field__lbl">Rating</label>
-            <StarPicker value={form.rating} onChange={(v) => setForm({ ...form, rating: v })} />
+          {/* Rating + status */}
+          <div className="nw-grid-2">
+            <div className="nw-field">
+              <label className="nw-field__lbl">Rating</label>
+              <StarPicker value={form.rating} onChange={(v) => setForm({ ...form, rating: v })} />
+            </div>
+            <div className="nw-field">
+              <label className="nw-field__lbl">Status</label>
+              <select className="nw-select" {...field('status')}>
+                <option value="APPROVED">Approved (visible on site)</option>
+                <option value="PENDING">Pending review</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
           </div>
 
           {/* Featured toggle */}
@@ -376,7 +465,7 @@ const AdminTestimonial = () => {
         >
           <p style={{ margin: 0, color: 'var(--nw-text-muted)' }}>
             Delete testimonial from{' '}
-            <strong style={{ color: '#fff' }}>"{modal.data.author}"</strong>? This cannot be undone.
+            <strong style={{ color: '#fff' }}>"{modal.data.name}"</strong>? This cannot be undone.
           </p>
         </Modal>
       )}
